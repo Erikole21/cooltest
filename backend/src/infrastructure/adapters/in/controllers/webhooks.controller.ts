@@ -6,6 +6,7 @@ import {
   HttpCode,
   Inject,
 } from '@nestjs/common';
+import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../../../config/prisma.service';
 import { TRANSACTION_REPOSITORY } from '../../../../domain/ports/out/transaction.repository.port';
 import type { TransactionRepositoryPort } from '../../../../domain/ports/out/transaction.repository.port';
@@ -23,7 +24,9 @@ export class WebhooksController {
     @Inject(WOMPI_SERVICE)
     private readonly wompiService: WompiServicePort,
     private readonly transactionGateway: TransactionGateway,
+    private readonly logger: Logger,
   ) {}
+
 
   @Post('wompi')
   @HttpCode(200)
@@ -31,7 +34,7 @@ export class WebhooksController {
     @Body() payload: any,
     @Headers('x-event-checksum') signature: string,
   ) {
-    console.log('📨 Received Wompi webhook:', payload.event);
+    this.logger.log(`📨 Received Wompi webhook: ${payload.event}`);
 
     try {
       // 1. Always save the webhook event for audit
@@ -50,7 +53,7 @@ export class WebhooksController {
           signature,
         );
         if (!isValid) {
-          console.warn('⚠️ Invalid webhook signature');
+          this.logger.warn('⚠️ Invalid webhook signature');
           // In production, you might want to reject invalid signatures
           // return { status: 'rejected', reason: 'Invalid signature' };
         }
@@ -94,7 +97,7 @@ export class WebhooksController {
                 wompiTxnId,
               );
 
-              console.log(
+              this.logger.log(
                 `✅ Transaction ${transaction.id} updated to ${mappedStatus} via webhook`,
               );
 
@@ -104,14 +107,14 @@ export class WebhooksController {
               );
             }
           } else {
-            console.warn(`⚠️ Transaction not found for reference: ${reference}`);
+            this.logger.warn(`⚠️ Transaction not found for reference: ${reference}`);
           }
         }
       }
 
       return { status: 'received' };
     } catch (error) {
-      console.error('❌ Error processing webhook:', error);
+      this.logger.error('❌ Error processing webhook:', error);
       // Still return 200 to prevent Wompi retries for processing errors
       return { status: 'received', error: error.message };
     }

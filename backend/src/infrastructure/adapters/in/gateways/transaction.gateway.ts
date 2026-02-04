@@ -7,6 +7,7 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { ConfigService } from '@nestjs/config';
+import { Logger } from 'nestjs-pino';
 
 @WebSocketGateway({
   cors: {
@@ -17,24 +18,28 @@ import { ConfigService } from '@nestjs/config';
 export class TransactionGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
 {
+
   @WebSocketServer()
   server: Server;
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly logger: Logger,
+  ) {}
 
   afterInit(server: Server) {
     const corsOrigin = this.configService
       .get<string>('SOCKET_CORS_ORIGIN', '*')
       .split(',');
-    console.log(`🔌 Socket.IO initialized with CORS: ${corsOrigin}`);
+    this.logger.log(`🔌 Socket.IO initialized with CORS: ${corsOrigin}`);
   }
 
   handleConnection(client: Socket) {
-    console.log(`🔗 Client connected: ${client.id}`);
+    this.logger.log(`🔗 Client connected: ${client.id}`);
   }
 
   handleDisconnect(client: Socket) {
-    console.log(`🔌 Client disconnected: ${client.id}`);
+    this.logger.log(`🔌 Client disconnected: ${client.id}`);
   }
 
   emitTransactionUpdate(transactionId: number, status: string) {
@@ -43,6 +48,6 @@ export class TransactionGateway
       status,
       timestamp: new Date().toISOString(),
     });
-    console.log(`📡 Emitted transaction update: ${transactionId} -> ${status}`);
+    this.logger.log(`📡 Emitted transaction update: ${transactionId} -> ${status}`);
   }
 }

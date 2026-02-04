@@ -118,7 +118,7 @@ async function main() {
 
   console.log('3. Llamando checkout del backend (POST /api/v1/checkout)...');
   const checkoutBody = {
-    productId: 11,
+    productId: 21, // iPhone 15 Pro Max (producto válido del seed)
     quantity: 1,
     paymentToken,
     acceptanceToken,

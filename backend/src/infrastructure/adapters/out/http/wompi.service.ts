@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Logger } from 'nestjs-pino';
 import axios, { AxiosInstance } from 'axios';
 import * as crypto from 'crypto';
 import type {
@@ -15,7 +16,10 @@ export class WompiService implements WompiServicePort {
   private readonly privateKey: string;
   private readonly integritySecret: string;
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly logger: Logger,
+  ) {
     const apiUrl = this.configService.get<string>('WOMPI_API_URL', 'https://api-sandbox.co.uat.wompi.dev/v1');
     this.privateKey = (this.configService.get<string>('WOMPI_PRIVATE_KEY', '') || '').trim();
     this.integritySecret = (this.configService.get<string>('WOMPI_INTEGRITY_SECRET', '') || '').trim();
@@ -67,7 +71,11 @@ export class WompiService implements WompiServicePort {
         amountInCents: response.data.data.amount_in_cents,
       };
     } catch (error: unknown) {
-      console.error('Error creating Wompi transaction:', (error as { response?: { data?: unknown } })?.response?.data);
+      const errorData = (error as { response?: { data?: unknown } })?.response?.data;
+      this.logger.error(
+        { error: errorData, reference: data.reference },
+        'Error creating Wompi transaction',
+      );
       const messages = (error as { response?: { data?: { error?: { messages?: unknown } } } })?.response?.data?.error?.messages;
       const messageStr = Array.isArray(messages)
         ? messages.join(', ')
@@ -98,9 +106,15 @@ export class WompiService implements WompiServicePort {
         amountInCents: response.data.data.amount_in_cents,
       };
     } catch (error) {
-      console.error('Error fetching Wompi transaction:', error.response?.data);
+      this.logger.error(
+        {
+          error: (error as { response?: { data?: unknown } })?.response?.data,
+          wompiTxnId,
+        },
+        'Error fetching Wompi transaction',
+      );
       throw new Error(
-        `Failed to fetch Wompi transaction: ${error.message}`,
+        `Failed to fetch Wompi transaction: ${(error as Error).message}`,
       );
     }
   }
@@ -121,7 +135,10 @@ export class WompiService implements WompiServicePort {
 
       return calculatedSignature === signature;
     } catch (error) {
-      console.error('Error validating webhook signature:', error);
+      this.logger.error(
+        { error: error instanceof Error ? error.message : String(error) },
+        'Error validating webhook signature',
+      );
       return false;
     }
   }

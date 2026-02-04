@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { Logger } from 'nestjs-pino';
 import { TransactionPollingProcessor } from './transaction-polling.processor';
 import { TRANSACTION_REPOSITORY } from '../../domain/ports/out/transaction.repository.port';
 import { WOMPI_SERVICE } from '../../domain/ports/out/wompi.service.port';
@@ -13,10 +14,21 @@ describe('TransactionPollingProcessor', () => {
   let transactionGateway: any;
   let pollingQueue: any;
 
+  const mockLogger = {
+    log: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TransactionPollingProcessor,
+        {
+          provide: Logger,
+          useValue: mockLogger,
+        },
         {
           provide: TRANSACTION_REPOSITORY,
           useValue: {
@@ -68,13 +80,11 @@ describe('TransactionPollingProcessor', () => {
 
     it('should skip polling if transaction not found', async () => {
       transactionRepository.findById.mockResolvedValue(null);
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 
       await processor.handlePollTransaction(mockJob as any);
 
       expect(transactionRepository.findById).toHaveBeenCalledWith(1);
-      expect(consoleSpy).toHaveBeenCalledWith('Transaction 1 not found');
-      consoleSpy.mockRestore();
+      expect(mockLogger.error).toHaveBeenCalledWith('Transaction 1 not found');
     });
 
     it('should skip polling if transaction has no wompiTxnId', async () => {
@@ -95,14 +105,12 @@ describe('TransactionPollingProcessor', () => {
       });
 
       transactionRepository.findById.mockResolvedValue(mockTransaction);
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
       await processor.handlePollTransaction(mockJob as any);
 
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(mockLogger.warn).toHaveBeenCalledWith(
         '⚠️ Transaction 1 has no Wompi ID, skipping poll',
       );
-      consoleSpy.mockRestore();
     });
 
     it('should skip polling if transaction status is already final', async () => {
@@ -124,14 +132,12 @@ describe('TransactionPollingProcessor', () => {
       });
 
       transactionRepository.findById.mockResolvedValue(mockTransaction);
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
       await processor.handlePollTransaction(mockJob as any);
 
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(mockLogger.log).toHaveBeenCalledWith(
         expect.stringContaining('✅ Transaction 1 already in final status: APPROVED'),
       );
-      consoleSpy.mockRestore();
     });
 
     it('should update transaction status when Wompi status changes to APPROVED', async () => {
@@ -233,15 +239,13 @@ describe('TransactionPollingProcessor', () => {
 
       transactionRepository.findById.mockResolvedValue(mockTransaction);
       wompiService.getTransaction.mockRejectedValue(new Error('Wompi API error'));
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 
       await expect(processor.handlePollTransaction(mockJob as any)).rejects.toThrow('Wompi API error');
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        '❌ Error polling transaction 1:',
-        'Wompi API error',
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ transactionId: 1 }),
+        expect.stringContaining('❌ Error polling transaction 1'),
       );
-      consoleSpy.mockRestore();
     });
   });
 });

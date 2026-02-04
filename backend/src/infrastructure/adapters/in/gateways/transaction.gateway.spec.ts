@@ -1,11 +1,19 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
+import { Logger } from 'nestjs-pino';
 import { TransactionGateway } from './transaction.gateway';
 import { Server, Socket } from 'socket.io';
 
 describe('TransactionGateway', () => {
   let gateway: TransactionGateway;
   let mockServer: Partial<Server>;
+
+  const mockLogger = {
+    log: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn(),
+  };
 
   beforeEach(async () => {
     mockServer = {
@@ -15,6 +23,10 @@ describe('TransactionGateway', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TransactionGateway,
+        {
+          provide: Logger,
+          useValue: mockLogger,
+        },
         {
           provide: ConfigService,
           useValue: {
@@ -37,29 +49,25 @@ describe('TransactionGateway', () => {
 
   describe('handleConnection', () => {
     it('should log when client connects', () => {
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
       const mockClient: Partial<Socket> = {
         id: 'test-socket-id',
       };
 
       gateway.handleConnection(mockClient as Socket);
 
-      expect(consoleSpy).toHaveBeenCalledWith('🔗 Client connected: test-socket-id');
-      consoleSpy.mockRestore();
+      expect(mockLogger.log).toHaveBeenCalledWith('🔗 Client connected: test-socket-id');
     });
   });
 
   describe('handleDisconnect', () => {
     it('should log when client disconnects', () => {
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
       const mockClient: Partial<Socket> = {
         id: 'test-socket-id',
       };
 
       gateway.handleDisconnect(mockClient as Socket);
 
-      expect(consoleSpy).toHaveBeenCalledWith('🔌 Client disconnected: test-socket-id');
-      consoleSpy.mockRestore();
+      expect(mockLogger.log).toHaveBeenCalledWith('🔌 Client disconnected: test-socket-id');
     });
   });
 
@@ -74,14 +82,11 @@ describe('TransactionGateway', () => {
     });
 
     it('should log the emitted event', () => {
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-
       gateway.emitTransactionUpdate(123, 'DECLINED');
 
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(mockLogger.log).toHaveBeenCalledWith(
         '📡 Emitted transaction update: 123 -> DECLINED',
       );
-      consoleSpy.mockRestore();
     });
   });
 });

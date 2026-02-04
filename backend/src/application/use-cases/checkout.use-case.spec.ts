@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
+import { Logger } from 'nestjs-pino';
 import { CheckoutUseCase } from './checkout.use-case';
 import { PRODUCT_REPOSITORY } from '../../domain/ports/out/product.repository.port';
 import { CUSTOMER_REPOSITORY } from '../../domain/ports/out/customer.repository.port';
@@ -19,10 +20,21 @@ describe('CheckoutUseCase', () => {
   let transactionRepository: any;
   let wompiService: any;
 
+  const mockLogger = {
+    log: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CheckoutUseCase,
+        {
+          provide: Logger,
+          useValue: mockLogger,
+        },
         {
           provide: PRODUCT_REPOSITORY,
           useValue: {

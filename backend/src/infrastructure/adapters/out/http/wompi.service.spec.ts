@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
+import { Logger } from 'nestjs-pino';
 import { WompiService } from './wompi.service';
 import { TransactionStatus } from '../../../../domain/entities/transaction.entity';
 import axios from 'axios';
@@ -10,6 +11,13 @@ const mockedAxios = axios as jest.Mocked<typeof axios>;
 describe('WompiService', () => {
   let service: WompiService;
   let configService: ConfigService;
+
+  const mockLogger = {
+    log: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn(),
+  };
 
   beforeEach(async () => {
     const mockAxiosInstance = {
@@ -22,6 +30,10 @@ describe('WompiService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         WompiService,
+        {
+          provide: Logger,
+          useValue: mockLogger,
+        },
         {
           provide: ConfigService,
           useValue: {

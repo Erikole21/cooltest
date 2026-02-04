@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { BullModule } from '@nestjs/bull';
+import { LoggerModule } from 'nestjs-pino';
 import { PrismaModule } from './infrastructure/config/prisma.module';
 
 // Repositories
@@ -42,6 +43,41 @@ import { WOMPI_SERVICE } from './domain/ports/out/wompi.service.port';
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
+    }),
+    LoggerModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => ({
+        pinoHttp: {
+          level: configService.get('NODE_ENV') === 'production' ? 'info' : 'debug',
+          transport:
+            configService.get('NODE_ENV') !== 'production'
+              ? {
+                  target: 'pino-pretty',
+                  options: {
+                    colorize: true,
+                    translateTime: 'SYS:HH:MM:ss',
+                    ignore: 'pid,hostname',
+                    singleLine: false,
+                  },
+                }
+              : undefined,
+          redact: {
+            paths: ['req.headers.authorization', 'req.headers.cookie'],
+            remove: true,
+          },
+          serializers: {
+            req: (req) => ({
+              id: req.id,
+              method: req.method,
+              url: req.url,
+            }),
+            res: (res) => ({
+              statusCode: res.statusCode,
+            }),
+          },
+        },
+      }),
+      inject: [ConfigService],
     }),
     PrismaModule,
     BullModule.forRootAsync({

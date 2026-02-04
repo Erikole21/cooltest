@@ -1,5 +1,6 @@
 import { Process, Processor } from '@nestjs/bull';
 import { Inject } from '@nestjs/common';
+import { Logger } from 'nestjs-pino';
 import type { Job } from 'bull';
 import { InjectQueue } from '@nestjs/bull';
 import type { Queue } from 'bull';
@@ -19,13 +20,14 @@ export class TransactionPollingProcessor {
     private readonly wompiService: WompiServicePort,
     private readonly transactionGateway: TransactionGateway,
     @InjectQueue('transaction-polling') private readonly pollingQueue: Queue,
+    private readonly logger: Logger,
   ) {}
 
   @Process('poll-transaction')
   async handlePollTransaction(job: Job) {
     const { transactionId } = job.data;
 
-    console.log(
+    this.logger.log(
       `🔄 Polling transaction ${transactionId} (attempt ${job.attemptsMade + 1})`,
     );
 
@@ -34,13 +36,13 @@ export class TransactionPollingProcessor {
       const transaction =
         await this.transactionRepository.findById(transactionId);
       if (!transaction) {
-        console.error(`Transaction ${transactionId} not found`);
+        this.logger.error(`Transaction ${transactionId} not found`);
         return;
       }
 
       // 2. If already final, skip
       if (transaction.isFinal()) {
-        console.log(
+        this.logger.log(
           `✅ Transaction ${transactionId} already in final status: ${transaction.status}`,
         );
         return;
@@ -48,7 +50,7 @@ export class TransactionPollingProcessor {
 
       // 3. If still PENDING, call Wompi
       if (!transaction.wompiTxnId) {
-        console.log(
+        this.logger.warn(
           `⚠️ Transaction ${transactionId} has no Wompi ID, skipping poll`,
         );
         return;
@@ -58,7 +60,7 @@ export class TransactionPollingProcessor {
         transaction.wompiTxnId,
       );
 
-      console.log(
+      this.logger.log(
         `📊 Wompi status for transaction ${transactionId}: ${wompiResponse.status}`,
       );
 
@@ -77,7 +79,7 @@ export class TransactionPollingProcessor {
           wompiResponse.id,
         );
 
-        console.log(
+        this.logger.log(
           `✅ Transaction ${transactionId} updated to status: ${wompiResponse.status}`,
         );
 
@@ -93,19 +95,22 @@ export class TransactionPollingProcessor {
             { transactionId, pollAttempt: pollAttempt + 1 },
             { delay: 600000 },
           );
-          console.log(
+          this.logger.log(
             `⏳ Transaction ${transactionId} still PENDING in Wompi, re-scheduled in 10 min (attempt ${pollAttempt + 2}/6)`,
           );
         } else {
-          console.log(
+          this.logger.log(
             `⏳ Transaction ${transactionId} still PENDING after max polling attempts`,
           );
         }
       }
     } catch (error) {
-      console.error(
-        `❌ Error polling transaction ${transactionId}:`,
-        error.message,
+      this.logger.error(
+        {
+          transactionId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        `❌ Error polling transaction ${transactionId}`,
       );
       throw error; // Let Bull retry
     }
@@ -119,7 +124,7 @@ export class TransactionPollingProcessor {
     );
     if (expired.length === 0) return;
 
-    console.log(`🧹 Expiring ${expired.length} reservation(s)`);
+    this.logger.log(`🧹 Expiring ${expired.length} reservation(s)`);
 
     for (const txn of expired) {
       try {
@@ -130,7 +135,10 @@ export class TransactionPollingProcessor {
         this.transactionGateway.emitTransactionUpdate(txn.id, TransactionStatus.VOIDED);
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
-        console.error(`❌ Failed to expire reservation for txn ${txn.id}:`, msg);
+        this.logger.error(
+          { transactionId: txn.id, error: msg },
+          `❌ Failed to expire reservation for txn ${txn.id}`,
+        );
       }
     }
   }

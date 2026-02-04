@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { Logger } from 'nestjs-pino';
 import { WebhooksController } from './webhooks.controller';
 import { PrismaService } from '../../../config/prisma.service';
 import { TRANSACTION_REPOSITORY } from '../../../../domain/ports/out/transaction.repository.port';
@@ -12,6 +13,13 @@ describe('WebhooksController', () => {
   let transactionRepository: any;
   let wompiService: any;
   let transactionGateway: any;
+
+  const mockLogger = {
+    log: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn(),
+  };
 
   beforeEach(async () => {
     prisma = {
@@ -32,6 +40,7 @@ describe('WebhooksController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [WebhooksController],
       providers: [
+        { provide: Logger, useValue: mockLogger },
         { provide: PrismaService, useValue: prisma },
         { provide: TRANSACTION_REPOSITORY, useValue: transactionRepository },
         { provide: WOMPI_SERVICE, useValue: wompiService },

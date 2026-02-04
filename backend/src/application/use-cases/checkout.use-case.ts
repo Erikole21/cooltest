@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Logger } from 'nestjs-pino';
 import { PRODUCT_REPOSITORY } from '../../domain/ports/out/product.repository.port';
 import type { ProductRepositoryPort } from '../../domain/ports/out/product.repository.port';
 import { CUSTOMER_REPOSITORY } from '../../domain/ports/out/customer.repository.port';
@@ -56,6 +57,7 @@ export class CheckoutUseCase {
     @Inject(WOMPI_SERVICE)
     private readonly wompiService: WompiServicePort,
     private readonly configService: ConfigService,
+    private readonly logger: Logger,
   ) {}
 
   async execute(input: CheckoutInput): Promise<CheckoutResult> {
@@ -170,7 +172,14 @@ export class CheckoutUseCase {
         total,
       };
     } catch (error) {
-      console.error('Checkout use case error:', error);
+      this.logger.error(
+        {
+          error: error instanceof Error ? error.message : String(error),
+          productId: input.productId,
+          quantity: input.quantity,
+        },
+        'Checkout use case error',
+      );
       // Best effort: if anything failed after reserving but before finalizing, release is handled by expiry job.
       return {
         success: false,
