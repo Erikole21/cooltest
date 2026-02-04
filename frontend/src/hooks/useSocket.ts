@@ -3,7 +3,9 @@ import { io, type Socket } from 'socket.io-client';
 import type { TransactionUpdateEvent } from '../types';
 
 const SOCKET_URL =
-  import.meta.env.VITE_SOCKET_URL ?? (window.location.port === '5173' ? 'http://localhost:3000' : window.location.origin);
+  import.meta.env.VITE_SOCKET_URL ??
+  import.meta.env.VITE_API_URL ??
+  (window.location.port === '5173' ? 'http://localhost:3000' : window.location.origin);
 
 export function useTransactionUpdate(
   transactionId: number | null,
