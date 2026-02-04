@@ -94,4 +94,176 @@ describe('CardDeliveryForm', () => {
     expect(onCardFormChange).toHaveBeenCalled();
     expect(onCardFormChange.mock.calls[0][0].number).toBe('4242');
   });
+
+  it('calls onCustomerChange when fullName changes', async () => {
+    const onCustomerChange = vi.fn();
+    render(
+      <CardDeliveryForm
+        {...defaultProps}
+        customer={{ email: 'a@b.co', fullName: '' }}
+        onCustomerChange={onCustomerChange}
+      />
+    );
+    const nameInput = screen.getByPlaceholderText(/Nombre completo/);
+    fireEvent.change(nameInput, { target: { value: 'John Doe' } });
+    expect(onCustomerChange).toHaveBeenCalledWith({
+      email: 'a@b.co',
+      fullName: 'John Doe',
+    });
+  });
+
+  it('calls onDeliveryChange when address changes', async () => {
+    const onDeliveryChange = vi.fn();
+    render(
+      <CardDeliveryForm
+        {...defaultProps}
+        delivery={{ address: '', city: '', phone: '' }}
+        onDeliveryChange={onDeliveryChange}
+      />
+    );
+    const addressInput = screen.getByPlaceholderText(/Dirección/);
+    fireEvent.change(addressInput, { target: { value: 'Calle 123' } });
+    expect(onDeliveryChange).toHaveBeenCalledWith({
+      address: 'Calle 123',
+      city: '',
+      phone: '',
+    });
+  });
+
+  it('calls onDeliveryChange when city changes', async () => {
+    const onDeliveryChange = vi.fn();
+    render(
+      <CardDeliveryForm
+        {...defaultProps}
+        delivery={{ address: 'Calle', city: '', phone: '' }}
+        onDeliveryChange={onDeliveryChange}
+      />
+    );
+    const cityInput = screen.getByPlaceholderText(/Ciudad/);
+    fireEvent.change(cityInput, { target: { value: 'Bogotá' } });
+    expect(onDeliveryChange).toHaveBeenCalledWith({
+      address: 'Calle',
+      city: 'Bogotá',
+      phone: '',
+    });
+  });
+
+  it('calls onDeliveryChange when phone changes', async () => {
+    const onDeliveryChange = vi.fn();
+    render(
+      <CardDeliveryForm
+        {...defaultProps}
+        delivery={{ address: 'Calle', city: 'Bogotá', phone: '' }}
+        onDeliveryChange={onDeliveryChange}
+      />
+    );
+    const phoneInput = screen.getByPlaceholderText(/Teléfono/);
+    fireEvent.change(phoneInput, { target: { value: '3001234567' } });
+    expect(onDeliveryChange).toHaveBeenCalledWith({
+      address: 'Calle',
+      city: 'Bogotá',
+      phone: '3001234567',
+    });
+  });
+
+  it('calls onCardFormChange when expMonth changes', async () => {
+    const onCardFormChange = vi.fn();
+    render(
+      <CardDeliveryForm
+        {...defaultProps}
+        cardForm={{
+          number: '4242',
+          expMonth: '',
+          expYear: '',
+          cvc: '',
+          cardHolder: '',
+        }}
+        onCardFormChange={onCardFormChange}
+      />
+    );
+    const monthInput = screen.getByPlaceholderText(/MM/);
+    fireEvent.change(monthInput, { target: { value: '12' } });
+    expect(onCardFormChange).toHaveBeenCalled();
+    expect(onCardFormChange.mock.calls[0][0].expMonth).toBe('12');
+  });
+
+  it('calls onCardFormChange when expYear changes', async () => {
+    const onCardFormChange = vi.fn();
+    render(
+      <CardDeliveryForm
+        {...defaultProps}
+        cardForm={{
+          number: '4242',
+          expMonth: '12',
+          expYear: '',
+          cvc: '',
+          cardHolder: '',
+        }}
+        onCardFormChange={onCardFormChange}
+      />
+    );
+    const yearInput = screen.getByPlaceholderText(/AAAA/);
+    fireEvent.change(yearInput, { target: { value: '2030' } });
+    expect(onCardFormChange).toHaveBeenCalled();
+    expect(onCardFormChange.mock.calls[0][0].expYear).toBe('2030');
+  });
+
+  it('calls onCardFormChange when cvc changes', async () => {
+    const onCardFormChange = vi.fn();
+    render(
+      <CardDeliveryForm
+        {...defaultProps}
+        cardForm={{
+          number: '4242',
+          expMonth: '12',
+          expYear: '2030',
+          cvc: '',
+          cardHolder: '',
+        }}
+        onCardFormChange={onCardFormChange}
+      />
+    );
+    const cvcInput = screen.getByPlaceholderText(/CVC/);
+    fireEvent.change(cvcInput, { target: { value: '123' } });
+    expect(onCardFormChange).toHaveBeenCalled();
+    expect(onCardFormChange.mock.calls[0][0].cvc).toBe('123');
+  });
+
+  it('calls onCardFormChange when cardHolder changes', async () => {
+    const onCardFormChange = vi.fn();
+    render(
+      <CardDeliveryForm
+        {...defaultProps}
+        cardForm={{
+          number: '4242',
+          expMonth: '12',
+          expYear: '2030',
+          cvc: '123',
+          cardHolder: '',
+        }}
+        onCardFormChange={onCardFormChange}
+      />
+    );
+    const holderInput = screen.getByPlaceholderText(/Titular de la tarjeta/);
+    fireEvent.change(holderInput, { target: { value: 'JOHN DOE' } });
+    expect(onCardFormChange).toHaveBeenCalledWith({
+      number: '4242',
+      expMonth: '12',
+      expYear: '2030',
+      cvc: '123',
+      cardHolder: 'JOHN DOE',
+    });
+  });
+
+  it('disables submit button when loading', () => {
+    render(<CardDeliveryForm {...defaultProps} loading={true} />);
+    const submitButton = screen.getByRole('button');
+    expect(submitButton).toBeDisabled();
+  });
+
+  it('shows loading text when loading', () => {
+    render(<CardDeliveryForm {...defaultProps} loading={true} />);
+    const submitButton = screen.getByRole('button');
+    expect(submitButton.textContent).toContain('Verificando');
+  });
 });

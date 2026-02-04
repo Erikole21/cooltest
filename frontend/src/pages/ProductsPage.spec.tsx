@@ -116,4 +116,81 @@ describe('ProductsPage', () => {
     ).toBeInTheDocument();
     expect(within(dialog).getByPlaceholderText(/Email/i)).toBeInTheDocument();
   });
+
+  it('retries fetching products when clicking Reintentar', async () => {
+    const getProducts = await getApiMock();
+    getProducts.mockRejectedValueOnce(new Error('Network error'));
+    renderWithStore();
+
+    await waitFor(() => {
+      expect(screen.getByText('Network error')).toBeInTheDocument();
+    });
+
+    const retryButton = screen.getByRole('button', { name: /Reintentar/i });
+
+    const items = [
+      {
+        id: 1,
+        name: 'Product B',
+        description: 'Desc',
+        price: 2000,
+        stockQuantity: 3,
+        imageUrl: null,
+        createdAt: '',
+        updatedAt: '',
+      },
+    ];
+    getProducts.mockResolvedValueOnce({ products: items });
+
+    fireEvent.click(retryButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('Product B')).toBeInTheDocument();
+    });
+  });
+
+  it('shows empty state when no products available', async () => {
+    const getProducts = await getApiMock();
+    getProducts.mockResolvedValueOnce({ products: [] });
+    renderWithStore();
+
+    await waitFor(() => {
+      expect(screen.getByText(/Productos disponibles/)).toBeInTheDocument();
+    });
+  });
+
+  it('highlights product after successful transaction', async () => {
+    const items = [
+      {
+        id: 1,
+        name: 'Product A',
+        description: 'Desc',
+        price: 1000,
+        stockQuantity: 5,
+        imageUrl: null,
+        createdAt: '',
+        updatedAt: '',
+      },
+      {
+        id: 2,
+        name: 'Product B',
+        description: 'Desc',
+        price: 2000,
+        stockQuantity: 3,
+        imageUrl: null,
+        createdAt: '',
+        updatedAt: '',
+      },
+    ];
+    const getProducts = await getApiMock();
+    getProducts.mockResolvedValueOnce({ products: items });
+
+    renderWithStore({
+      products: { items, loading: false, error: null, highlightedProductId: 1 },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Product A')).toBeInTheDocument();
+    });
+  });
 });

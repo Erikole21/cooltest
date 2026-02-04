@@ -152,4 +152,61 @@ describe('ProductRepository', () => {
       });
     });
   });
+
+  describe('reserveStock', () => {
+    it('should reserve stock successfully when available', async () => {
+      prismaService.$executeRaw = jest.fn().mockResolvedValue(1);
+
+      const result = await repository.reserveStock(1, 5);
+
+      expect(result).toBe(true);
+      expect(prismaService.$executeRaw).toHaveBeenCalled();
+    });
+
+    it('should fail to reserve when insufficient stock', async () => {
+      prismaService.$executeRaw = jest.fn().mockResolvedValue(0);
+
+      const result = await repository.reserveStock(1, 100);
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('releaseReservedStock', () => {
+    it('should release reserved stock successfully', async () => {
+      prismaService.$executeRaw = jest.fn().mockResolvedValue(1);
+
+      const result = await repository.releaseReservedStock(1, 5);
+
+      expect(result).toBe(true);
+      expect(prismaService.$executeRaw).toHaveBeenCalled();
+    });
+
+    it('should fail when no reserved stock to release', async () => {
+      prismaService.$executeRaw = jest.fn().mockResolvedValue(0);
+
+      const result = await repository.releaseReservedStock(1, 5);
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('commitReservedStock', () => {
+    it('should commit reserved stock successfully', async () => {
+      prismaService.$executeRaw = jest.fn().mockResolvedValue(1);
+
+      const result = await repository.commitReservedStock(1, 5);
+
+      expect(result).toBe(true);
+      expect(prismaService.$executeRaw).toHaveBeenCalled();
+    });
+
+    it('should fail when insufficient reserved or actual stock', async () => {
+      prismaService.$executeRaw = jest.fn().mockResolvedValue(0);
+
+      const result = await repository.commitReservedStock(1, 5);
+
+      expect(result).toBe(false);
+    });
+  });
 });
