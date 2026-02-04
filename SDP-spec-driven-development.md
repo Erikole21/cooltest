@@ -255,6 +255,40 @@ Integración vía API Keys (el usuario de prueba puede cerrarse si hay acceso de
 
 ---
 
+### Fase 5: Mejoras de Producción (implementada)
+
+**Entregables Fase 5:**
+1. **Rate Limiting** con @nestjs/throttler:
+   - Límite global: 10 req/min por IP
+   - Límite específico checkout: 5 req/min por IP
+   - Health checks y webhooks exentos
+2. **Validación estricta de webhooks:**
+   - Firma HMAC-SHA256 obligatoria
+   - UnauthorizedException para firmas inválidas o faltantes
+   - Prevención de webhooks no autorizados
+3. **Health Check Endpoints** con @nestjs/terminus:
+   - `GET /api/v1/health` - Comprehensive (database, memory, disk)
+   - `GET /api/v1/health/ready` - Readiness probe (database)
+   - `GET /api/v1/health/live` - Liveness probe (timestamp)
+4. **Timeout y Retry en cliente HTTP:**
+   - Timeout: 30 segundos
+   - Reintentos: 3 intentos con backoff exponencial
+   - Retry en errores de red, 5xx, y 429 (rate limit)
+5. **Tests E2E:**
+   - Flujo completo de checkout con reserva de stock
+   - Prevención de overselling
+   - Manejo de reservas concurrentes
+   - Validación de health checks
+   - Verificación de rate limiting
+
+**Cobertura de Tests:**
+- Backend: 81.15% (95/95 tests pasando)
+- Frontend: 84.53% (111/111 tests pasando)
+
+**Criterio de aceptación Fase 5:** Rate limiting funcionando, health checks respondiendo correctamente, validación estricta de webhooks, cliente HTTP resiliente, tests E2E pasando.
+
+---
+
 ## 13. Modelo de datos (propuesta)
 
 ```

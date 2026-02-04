@@ -211,8 +211,35 @@ Ver [frontend/README.md](frontend/README.md) para:
 - [x] Base de datos PostgreSQL en Docker
 - [x] Redis en Docker
 - [x] Aplicación funcional y accesible públicamente
-- [x] Guía de deployment documentada en AWS_DEPLOYMENT_GUIDE.md
 - [x] Webhook endpoint listo para configurar (ver [WEBHOOK_SETUP.md](WEBHOOK_SETUP.md))
+
+### ✅ Fase 5: Mejoras para Producción (Completada)
+- [x] **Rate Limiting** implementado con @nestjs/throttler
+  - Límite global: 10 req/min por IP
+  - Límite específico checkout: 5 req/min por IP
+  - Health checks y webhooks exentos de rate limiting
+- [x] **Validación estricta de webhooks**
+  - Firma HMAC-SHA256 obligatoria
+  - UnauthorizedException para firmas inválidas o faltantes
+  - Prevención de webhooks no autorizados
+- [x] **Health Check Endpoints** con @nestjs/terminus
+  - `GET /api/v1/health` - Comprehensive check (database, memory heap, RSS, disk)
+  - `GET /api/v1/health/ready` - Readiness probe para Kubernetes/AWS
+  - `GET /api/v1/health/live` - Liveness probe simple
+- [x] **Timeout y Retry** en cliente HTTP Wompi
+  - Timeout configurado a 30 segundos
+  - 3 reintentos con backoff exponencial
+  - Retry automático en errores de red, 5xx, y 429
+  - Logging de reintentos para debugging
+- [x] **Tests E2E** para flujo completo
+  - Flujo de checkout con reserva de stock
+  - Prevención de overselling
+  - Manejo de reservas concurrentes
+  - Validación de health checks
+  - Verificación de rate limiting
+- [x] **Coverage actualizado**
+  - Backend: 81.15% (95/95 tests pasando)
+  - Frontend: 84.53% (111/111 tests pasando)
 
 ## Endpoints Disponibles
 
@@ -225,8 +252,11 @@ Todos con prefijo `/api/v1`:
 | GET | `/customers/:id` | Obtener un cliente |
 | GET | `/deliveries/:id` | Obtener una entrega |
 | GET | `/transactions/:id` | Obtener una transacción |
-| POST | `/checkout` | Crear transacción de pago (reserva stock; puede devolver 404 si el producto no existe o 409 si no hay stock suficiente) |
-| POST | `/webhooks/wompi` | Recibir notificaciones Wompi |
+| POST | `/checkout` | Crear transacción de pago (reserva stock; puede devolver 404 si el producto no existe o 409 si no hay stock suficiente) **[Rate limited: 5 req/min]** |
+| POST | `/webhooks/wompi` | Recibir notificaciones Wompi **[Validación de firma obligatoria]** |
+| GET | `/health` | Health check completo (database, memory, disk) |
+| GET | `/health/ready` | Readiness probe (database) |
+| GET | `/health/live` | Liveness probe (timestamp) |
 
 ## Credenciales Wompi Sandbox
 
@@ -234,12 +264,59 @@ Las credenciales de pruebas están incluidas en `backend/.env.example`:
 
 **Modo Sandbox:** Sin transacciones reales, sin dinero real.
 
+## Mejoras de Producción Implementadas
+
+La aplicación incluye las siguientes mejoras para entornos de producción:
+
+### 🔒 Seguridad y Prevención de Abuso
+
+**Rate Limiting (Throttling)**
+- Límite global: 10 requests por minuto por IP
+- Límite específico para checkout: 5 requests por minuto por IP
+- Health checks y webhooks exentos de rate limiting
+- Protección contra ataques DoS y uso abusivo
+
+**Validación Estricta de Webhooks**
+- Firma HMAC-SHA256 obligatoria en todos los webhooks
+- Rechaza webhooks sin firma o con firma inválida (HTTP 401)
+- Previene procesamiento de webhooks no autorizados
+- Auditoría completa: todos los webhooks se guardan en base de datos
+
+### 💚 Monitoreo y Observabilidad
+
+**Health Check Endpoints**
+- `GET /api/v1/health` - Check completo (database, memory heap, RSS, disk)
+- `GET /api/v1/health/ready` - Readiness probe para Kubernetes/AWS Load Balancer
+- `GET /api/v1/health/live` - Liveness probe simple con timestamp
+- Compatibles con Kubernetes, AWS ECS, y otros orquestadores
+
+### 🔄 Resiliencia
+
+**Timeout y Retry en Cliente HTTP**
+- Timeout de 30 segundos en llamadas a API de Wompi
+- 3 reintentos automáticos con backoff exponencial
+- Retry en errores de red, errores 5xx, y rate limits (429)
+- Logging detallado de cada reintento para debugging
+
+### ✅ Testing
+
+**Tests End-to-End**
+- Flujo completo de checkout con reserva de stock
+- Prevención de overselling (race conditions)
+- Manejo de reservas concurrentes
+- Validación de health checks
+- Verificación de rate limiting
+
+**Coverage Actual**
+- Backend: **81.15%** (95/95 tests pasando)
+- Frontend: **84.53%** (111/111 tests pasando)
+
 ## Configuración de Webhook Wompi
 
 El endpoint de webhook está **listo para configurar** en el panel de Wompi. La aplicación incluye:
 
 ✅ **Endpoint público:** `http://16.58.208.177:3000/api/v1/webhooks/wompi`
-✅ **Validación de firma:** Implementada con `WOMPI_EVENTS_SECRET`
+✅ **Validación de firma estricta:** Implementada con `WOMPI_EVENTS_SECRET` (obligatoria)
 ✅ **Procesamiento robusto:** Manejo de eventos `transaction.updated`
 ✅ **Sistema de respaldo:** Polling automático con Bull/Redis en caso de que el webhook falle
 
