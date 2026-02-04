@@ -137,6 +137,8 @@ export function CheckoutFlow({ presentation }: { presentation: Presentation }) {
       <SummaryBackdrop
         product={product}
         quantity={quantity}
+        customer={customer}
+        delivery={delivery}
         baseFeeCents={BASE_FEE_CENTS}
         deliveryFeeCents={DELIVERY_FEE_CENTS}
         totalCents={product.price * quantity + BASE_FEE_CENTS + DELIVERY_FEE_CENTS}

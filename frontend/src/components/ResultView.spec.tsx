@@ -47,15 +47,20 @@ describe('ResultView', () => {
     expect(screen.getByText(/Pago rechazado/)).toBeInTheDocument();
   });
 
-  it('shows transaction id', () => {
+  it('shows payment reference', () => {
     renderWithStore('APPROVED', 99);
-    expect(screen.getByText(/Transacción #99/)).toBeInTheDocument();
+    expect(screen.getByText(/TXN-99/)).toBeInTheDocument();
   });
 
   it('Volver a productos button dispatches finishCheckout', () => {
-    const { store } = renderWithStore();
+    const { store } = renderWithStore('APPROVED');
     fireEvent.click(screen.getByRole('button', { name: /Volver a productos/ }));
     expect(store.getState().checkout.step).toBe(1);
     expect(store.getState().checkout.transactionId).toBe(null);
+  });
+
+  it('does not show Volver a productos when status is PENDING', () => {
+    renderWithStore('PENDING');
+    expect(screen.queryByRole('button', { name: /Volver a productos/ })).not.toBeInTheDocument();
   });
 });

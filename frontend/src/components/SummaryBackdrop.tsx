@@ -1,8 +1,11 @@
 import type { Product } from '../types';
+import type { CustomerForm, DeliveryForm } from '../types';
 
 interface SummaryBackdropProps {
   product: Product;
   quantity: number;
+  customer: CustomerForm | null;
+  delivery: DeliveryForm | null;
   baseFeeCents: number;
   deliveryFeeCents: number;
   totalCents: number;
@@ -23,6 +26,8 @@ function formatPrice(cents: number): string {
 export function SummaryBackdrop({
   product,
   quantity,
+  customer,
+  delivery,
   baseFeeCents,
   deliveryFeeCents,
   totalCents,
@@ -59,6 +64,16 @@ export function SummaryBackdrop({
       <h2 className="mb-4 text-lg font-semibold text-slate-800">
         Resumen del pago
       </h2>
+      {customer && delivery && (
+        <div className="mb-4 rounded-lg border border-slate-200 p-3 text-sm">
+          <p className="font-medium text-slate-800">{customer.fullName}</p>
+          <p className="text-slate-600">{customer.email}</p>
+          <p className="text-slate-600">{delivery.phone}</p>
+          <p className="mt-1 text-slate-600">
+            {delivery.address}, {delivery.city}
+          </p>
+        </div>
+      )}
       <ul className="space-y-2 text-sm">
         <li className="flex justify-between">
           <span className="text-slate-600">

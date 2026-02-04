@@ -13,6 +13,9 @@ const mockProduct = {
   updatedAt: '',
 };
 
+const mockCustomer = { email: 'test@test.com', fullName: 'Test User' };
+const mockDelivery = { address: 'Calle 1', city: 'Bogota', phone: '3001234567' };
+
 describe('SummaryBackdrop', () => {
   it('renders product name and total', () => {
     const onPay = () => {};
@@ -20,6 +23,8 @@ describe('SummaryBackdrop', () => {
       <SummaryBackdrop
         product={mockProduct}
         quantity={2}
+        customer={mockCustomer}
+        delivery={mockDelivery}
         baseFeeCents={0}
         deliveryFeeCents={0}
         totalCents={20000}
@@ -47,12 +52,31 @@ describe('SummaryBackdrop', () => {
     expect(onPay).toHaveBeenCalledTimes(1);
   });
 
+  it('renders customer name and phone in summary', () => {
+    render(
+      <SummaryBackdrop
+        product={mockProduct}
+        quantity={1}
+        customer={mockCustomer}
+        delivery={mockDelivery}
+        baseFeeCents={0}
+        deliveryFeeCents={0}
+        totalCents={10000}
+        onPay={() => {}}
+      />
+    );
+    expect(screen.getByText('Test User')).toBeInTheDocument();
+    expect(screen.getByText('3001234567')).toBeInTheDocument();
+  });
+
   it('renders Volver a datos when onBack provided', () => {
     const onBack = () => {};
     render(
       <SummaryBackdrop
         product={mockProduct}
         quantity={1}
+        customer={mockCustomer}
+        delivery={mockDelivery}
         baseFeeCents={0}
         deliveryFeeCents={0}
         totalCents={10000}
