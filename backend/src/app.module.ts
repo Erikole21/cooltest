@@ -2,6 +2,9 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { BullModule } from '@nestjs/bull';
 import { LoggerModule } from 'nestjs-pino';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { TerminusModule } from '@nestjs/terminus';
+import { APP_GUARD } from '@nestjs/core';
 import { PrismaModule } from './infrastructure/config/prisma.module';
 
 // Repositories
@@ -27,6 +30,7 @@ import { DeliveriesController } from './infrastructure/adapters/in/controllers/d
 import { TransactionsController } from './infrastructure/adapters/in/controllers/transactions.controller';
 import { CheckoutController } from './infrastructure/adapters/in/controllers/checkout.controller';
 import { WebhooksController } from './infrastructure/adapters/in/controllers/webhooks.controller';
+import { HealthController } from './infrastructure/adapters/in/controllers/health.controller';
 
 // Gateways
 import { TransactionGateway } from './infrastructure/adapters/in/gateways/transaction.gateway';
@@ -79,6 +83,13 @@ import { WOMPI_SERVICE } from './domain/ports/out/wompi.service.port';
       }),
       inject: [ConfigService],
     }),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000, // 60 seconds
+        limit: 10, // 10 requests per minute (default)
+      },
+    ]),
+    TerminusModule,
     PrismaModule,
     BullModule.forRootAsync({
       imports: [ConfigModule],
@@ -103,8 +114,14 @@ import { WOMPI_SERVICE } from './domain/ports/out/wompi.service.port';
     TransactionsController,
     CheckoutController,
     WebhooksController,
+    HealthController,
   ],
   providers: [
+    // Global Throttler Guard
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
     // Repositories
     {
       provide: PRODUCT_REPOSITORY,

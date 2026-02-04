@@ -6,6 +6,7 @@ import { TransactionStatus } from '../../../../domain/entities/transaction.entit
 import axios from 'axios';
 
 jest.mock('axios');
+jest.mock('axios-retry', () => jest.fn());
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 describe('WompiService', () => {

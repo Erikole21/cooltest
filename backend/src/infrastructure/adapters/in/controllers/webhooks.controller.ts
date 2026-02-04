@@ -5,7 +5,9 @@ import {
   Headers,
   HttpCode,
   Inject,
+  UnauthorizedException,
 } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../../../config/prisma.service';
 import { TRANSACTION_REPOSITORY } from '../../../../domain/ports/out/transaction.repository.port';
@@ -16,6 +18,7 @@ import { TransactionStatus } from '../../../../domain/entities/transaction.entit
 import { TransactionGateway } from '../gateways/transaction.gateway';
 
 @Controller('webhooks')
+@SkipThrottle() // Webhooks should not be rate limited
 export class WebhooksController {
   constructor(
     private readonly prisma: PrismaService,
@@ -46,17 +49,20 @@ export class WebhooksController {
         },
       });
 
-      // 2. Validate signature (optional but recommended)
-      if (signature) {
-        const isValid = this.wompiService.validateWebhookSignature(
-          payload,
-          signature,
-        );
-        if (!isValid) {
-          this.logger.warn('⚠️ Invalid webhook signature');
-          // In production, you might want to reject invalid signatures
-          // return { status: 'rejected', reason: 'Invalid signature' };
-        }
+      // 2. Validate signature (REQUIRED in production)
+      if (!signature) {
+        this.logger.warn('⚠️ Webhook received without signature');
+        throw new UnauthorizedException('Missing webhook signature');
+      }
+
+      const isValid = this.wompiService.validateWebhookSignature(
+        payload,
+        signature,
+      );
+
+      if (!isValid) {
+        this.logger.warn('⚠️ Invalid webhook signature');
+        throw new UnauthorizedException('Invalid webhook signature');
       }
 
       // 3. Process transaction.updated event

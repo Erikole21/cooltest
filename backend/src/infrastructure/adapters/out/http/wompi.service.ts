@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Logger } from 'nestjs-pino';
 import axios, { AxiosInstance } from 'axios';
+import axiosRetry from 'axios-retry';
 import * as crypto from 'crypto';
 import type {
   WompiServicePort,
@@ -26,8 +27,31 @@ export class WompiService implements WompiServicePort {
 
     this.httpClient = axios.create({
       baseURL: apiUrl,
+      timeout: 30000, // 30 seconds timeout
       headers: {
         'Content-Type': 'application/json',
+      },
+    });
+
+    // Configure retry logic
+    axiosRetry(this.httpClient, {
+      retries: 3, // Retry up to 3 times
+      retryDelay: axiosRetry.exponentialDelay, // Exponential backoff
+      retryCondition: (error) => {
+        // Retry on network errors or 5xx errors
+        return (
+          axiosRetry.isNetworkOrIdempotentRequestError(error) ||
+          (error.response?.status ?? 0) >= 500 ||
+          error.response?.status === 429 // Rate limit
+        );
+      },
+      onRetry: (retryCount, error, requestConfig) => {
+        this.logger.warn({
+          retryCount,
+          url: requestConfig.url,
+          method: requestConfig.method,
+          error: error.message,
+        }, 'Retrying Wompi API request');
       },
     });
   }

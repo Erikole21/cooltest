@@ -5,6 +5,7 @@ import {
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { CheckoutDto } from './dtos/checkout.dto';
 import { CheckoutUseCase } from '../../../../application/use-cases/checkout.use-case';
 import { InjectQueue } from '@nestjs/bull';
@@ -18,6 +19,7 @@ export class CheckoutController {
   ) {}
 
   @Post()
+  @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 checkouts per minute per IP
   async checkout(@Body() dto: CheckoutDto) {
     const result = await this.checkoutUseCase.execute({
       productId: dto.productId,

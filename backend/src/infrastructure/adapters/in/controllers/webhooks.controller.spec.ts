@@ -56,10 +56,10 @@ describe('WebhooksController', () => {
   });
 
   describe('handleWompiWebhook', () => {
-    it('should save webhook event and return received for any payload', async () => {
+    it('should save webhook event and return received for valid payload with signature', async () => {
       const payload = { event: 'some.event', data: {} };
 
-      const result = await controller.handleWompiWebhook(payload, undefined);
+      const result = await controller.handleWompiWebhook(payload, 'valid-signature');
 
       expect(prisma.wompiWebhookEvent.create).toHaveBeenCalledWith({
         data: {
@@ -142,7 +142,7 @@ describe('WebhooksController', () => {
       });
       transactionRepository.findByReference.mockResolvedValue(mockTransaction);
 
-      await controller.handleWompiWebhook(payload, undefined);
+      await controller.handleWompiWebhook(payload, 'valid-sig');
 
       expect(transactionRepository.finalizeStatus).toHaveBeenCalledWith(
         2,
@@ -164,10 +164,26 @@ describe('WebhooksController', () => {
       };
       transactionRepository.findByReference.mockResolvedValue(null);
 
-      const result = await controller.handleWompiWebhook(payload, undefined);
+      const result = await controller.handleWompiWebhook(payload, 'valid-sig');
 
       expect(transactionRepository.finalizeStatus).not.toHaveBeenCalled();
       expect(result).toEqual({ status: 'received' });
+    });
+
+    it('should return received with error when signature is missing', async () => {
+      const payload = {
+        event: 'transaction.updated',
+        data: {
+          transaction: { reference: 'TXN-999', status: 'APPROVED' },
+        },
+      };
+
+      const result = await controller.handleWompiWebhook(payload, undefined);
+
+      expect(result).toEqual({
+        status: 'received',
+        error: 'Missing webhook signature'
+      });
     });
 
     it('should return received with error message when prisma.create throws', async () => {
@@ -175,7 +191,7 @@ describe('WebhooksController', () => {
 
       const result = await controller.handleWompiWebhook(
         { event: 'transaction.updated' },
-        undefined,
+        'valid-sig',
       );
 
       expect(result).toEqual({ status: 'received', error: 'DB error' });
