@@ -1,0 +1,94 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Product entity - Technology products
+model Product {
+  id            Int           @id @default(autoincrement())
+  name          String        @db.VarChar(255)
+  description   String        @db.Text
+  price         Int           // Price in Colombian Peso cents
+  stockQuantity Int           @map("stock_quantity")
+  imageUrl      String?       @map("image_url") @db.VarChar(500)
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+  transactions  Transaction[]
+
+  @@map("products")
+}
+
+// Customer entity - Buyer information
+model Customer {
+  id           Int           @id @default(autoincrement())
+  email        String        @db.VarChar(255)
+  fullName     String        @map("full_name") @db.VarChar(255)
+  createdAt    DateTime      @default(now()) @map("created_at")
+  transactions Transaction[]
+
+  @@map("customers")
+}
+
+// Delivery entity - Shipping information
+model Delivery {
+  id           Int           @id @default(autoincrement())
+  address      String        @db.VarChar(500)
+  city         String        @db.VarChar(100)
+  phone        String        @db.VarChar(20)
+  createdAt    DateTime      @default(now()) @map("created_at")
+  transactions Transaction[]
+
+  @@map("deliveries")
+}
+
+// Transaction entity - Payment transactions
+model Transaction {
+  id          Int                @id @default(autoincrement())
+  productId   Int                @map("product_id")
+  customerId  Int                @map("customer_id")
+  deliveryId  Int                @map("delivery_id")
+  quantity    Int
+  unitPrice   Int                @map("unit_price") // Price in cents
+  baseFee     Int                @map("base_fee") // Fee in cents
+  deliveryFee Int                @map("delivery_fee") // Fee in cents
+  total       Int // Total amount in cents
+  status      TransactionStatus  @default(PENDING)
+  wompiTxnId  String?            @map("wompi_txn_id") @db.VarChar(255)
+  reference   String             @unique @db.VarChar(100)
+  createdAt   DateTime           @default(now()) @map("created_at")
+  updatedAt   DateTime           @updatedAt @map("updated_at")
+  product     Product            @relation(fields: [productId], references: [id])
+  customer    Customer           @relation(fields: [customerId], references: [id])
+  delivery    Delivery           @relation(fields: [deliveryId], references: [id])
+  webhookEvents WompiWebhookEvent[]
+
+  @@map("transactions")
+}
+
+// Transaction status enum
+enum TransactionStatus {
+  PENDING
+  APPROVED
+  DECLINED
+  ERROR
+  VOIDED
+}
+
+// WompiWebhookEvent entity - Audit trail for Wompi webhooks
+model WompiWebhookEvent {
+  id            Int          @id @default(autoincrement())
+  eventType     String       @map("event_type") @db.VarChar(100)
+  payload       Json // JSONB field to store raw webhook body
+  receivedAt    DateTime     @default(now()) @map("received_at")
+  transactionId Int?         @map("transaction_id")
+  transaction   Transaction? @relation(fields: [transactionId], references: [id])
+
+  @@map("wompi_webhook_events")
+}

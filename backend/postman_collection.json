@@ -1,0 +1,156 @@
+{
+  "info": {
+    "name": "Cooltest API - Wompi Integration",
+    "_postman_id": "cooltest-wompi-api",
+    "description": "API collection for the Cooltest e-commerce platform with Wompi payment integration",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000/api/v1",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Products",
+      "item": [
+        {
+          "name": "Get All Products",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/products",
+              "host": ["{{baseUrl}}"],
+              "path": ["products"]
+            }
+          }
+        },
+        {
+          "name": "Get Product by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/products/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["products", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Customers",
+      "item": [
+        {
+          "name": "Get Customer by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/customers/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["customers", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Deliveries",
+      "item": [
+        {
+          "name": "Get Delivery by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/deliveries/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["deliveries", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Transactions",
+      "item": [
+        {
+          "name": "Get Transaction by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/transactions/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Checkout",
+      "item": [
+        {
+          "name": "Create Checkout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": 1,\n  \"quantity\": 1,\n  \"paymentToken\": \"tok_test_12345_ABCDEFGH\",\n  \"installments\": 1,\n  \"acceptanceToken\": \"acceptance_token_from_wompi\",\n  \"acceptPersonalAuth\": \"personal_auth_token_from_wompi\",\n  \"customer\": {\n    \"email\": \"test@example.com\",\n    \"fullName\": \"John Doe\"\n  },\n  \"delivery\": {\n    \"address\": \"Calle 123 #45-67\",\n    \"city\": \"Bogotá\",\n    \"phone\": \"+57 300 1234567\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/checkout",
+              "host": ["{{baseUrl}}"],
+              "path": ["checkout"]
+            },
+            "description": "Create a checkout transaction. You need to obtain the paymentToken, acceptanceToken, and acceptPersonalAuth from Wompi first."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Webhooks",
+      "item": [
+        {
+          "name": "Wompi Webhook (Test)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "x-event-checksum",
+                "value": "test_checksum",
+                "description": "Signature from Wompi"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event\": \"transaction.updated\",\n  \"data\": {\n    \"transaction\": {\n      \"id\": \"wompi_txn_123\",\n      \"reference\": \"TXN-1\",\n      \"status\": \"APPROVED\",\n      \"amount_in_cents\": 5999000\n    }\n  },\n  \"timestamp\": \"2024-01-01T12:00:00Z\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhooks/wompi",
+              "host": ["{{baseUrl}}"],
+              "path": ["webhooks", "wompi"]
+            },
+            "description": "Test endpoint for Wompi webhooks. This is called automatically by Wompi in production."
+          }
+        }
+      ]
+    }
+  ]
+}

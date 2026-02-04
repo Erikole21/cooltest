@@ -1,0 +1,134 @@
+import {
+  Controller,
+  Post,
+  Body,
+  Headers,
+  HttpCode,
+  Inject,
+} from '@nestjs/common';
+import { PrismaService } from '../../../config/prisma.service';
+import { TRANSACTION_REPOSITORY } from '../../../../domain/ports/out/transaction.repository.port';
+import type { TransactionRepositoryPort } from '../../../../domain/ports/out/transaction.repository.port';
+import { WOMPI_SERVICE } from '../../../../domain/ports/out/wompi.service.port';
+import type { WompiServicePort } from '../../../../domain/ports/out/wompi.service.port';
+import { PRODUCT_REPOSITORY } from '../../../../domain/ports/out/product.repository.port';
+import type { ProductRepositoryPort } from '../../../../domain/ports/out/product.repository.port';
+import { TransactionStatus } from '../../../../domain/entities/transaction.entity';
+import { TransactionGateway } from '../gateways/transaction.gateway';
+
+@Controller('webhooks')
+export class WebhooksController {
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(TRANSACTION_REPOSITORY)
+    private readonly transactionRepository: TransactionRepositoryPort,
+    @Inject(WOMPI_SERVICE)
+    private readonly wompiService: WompiServicePort,
+    @Inject(PRODUCT_REPOSITORY)
+    private readonly productRepository: ProductRepositoryPort,
+    private readonly transactionGateway: TransactionGateway,
+  ) {}
+
+  @Post('wompi')
+  @HttpCode(200)
+  async handleWompiWebhook(
+    @Body() payload: any,
+    @Headers('x-event-checksum') signature: string,
+  ) {
+    console.log('📨 Received Wompi webhook:', payload.event);
+
+    try {
+      // 1. Always save the webhook event for audit
+      await this.prisma.wompiWebhookEvent.create({
+        data: {
+          eventType: payload.event,
+          payload: payload,
+          receivedAt: new Date(),
+        },
+      });
+
+      // 2. Validate signature (optional but recommended)
+      if (signature) {
+        const isValid = this.wompiService.validateWebhookSignature(
+          payload,
+          signature,
+        );
+        if (!isValid) {
+          console.warn('⚠️ Invalid webhook signature');
+          // In production, you might want to reject invalid signatures
+          // return { status: 'rejected', reason: 'Invalid signature' };
+        }
+      }
+
+      // 3. Process transaction.updated event
+      if (payload.event === 'transaction.updated') {
+        const reference = payload.data?.transaction?.reference;
+        const status = payload.data?.transaction?.status;
+        const wompiTxnId = payload.data?.transaction?.id;
+
+        if (reference && status) {
+          // Find our transaction by reference
+          const transaction =
+            await this.transactionRepository.findByReference(reference);
+
+          if (transaction) {
+            // Map Wompi status to our TransactionStatus
+            const statusMap: Record<string, TransactionStatus> = {
+              PENDING: TransactionStatus.PENDING,
+              APPROVED: TransactionStatus.APPROVED,
+              DECLINED: TransactionStatus.DECLINED,
+              ERROR: TransactionStatus.ERROR,
+              VOIDED: TransactionStatus.VOIDED,
+            };
+
+            const mappedStatus = statusMap[status] || TransactionStatus.ERROR;
+
+            // Update transaction if status is final
+            if (
+              [
+                TransactionStatus.APPROVED,
+                TransactionStatus.DECLINED,
+                TransactionStatus.ERROR,
+                TransactionStatus.VOIDED,
+              ].includes(mappedStatus)
+            ) {
+              await this.transactionRepository.updateStatus(
+                transaction.id,
+                mappedStatus,
+                wompiTxnId,
+              );
+
+              // If APPROVED, decrement stock
+              if (mappedStatus === TransactionStatus.APPROVED) {
+                await this.productRepository.updateStock(
+                  transaction.productId,
+                  transaction.quantity,
+                );
+                console.log(
+                  `📦 Stock decremented for product ${transaction.productId}`,
+                );
+              }
+
+              console.log(
+                `✅ Transaction ${transaction.id} updated to ${mappedStatus} via webhook`,
+              );
+
+              this.transactionGateway.emitTransactionUpdate(
+                transaction.id,
+                mappedStatus,
+              );
+            }
+          } else {
+            console.warn(`⚠️ Transaction not found for reference: ${reference}`);
+          }
+        }
+      }
+
+      return { status: 'received' };
+    } catch (error) {
+      console.error('❌ Error processing webhook:', error);
+      // Still return 200 to prevent Wompi retries for processing errors
+      return { status: 'received', error: error.message };
+    }
+  }
+}

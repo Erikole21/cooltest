@@ -1,0 +1,151 @@
+import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import axios, { AxiosInstance } from 'axios';
+import * as crypto from 'crypto';
+import type {
+  WompiServicePort,
+  CreateWompiTransactionData,
+  WompiTransactionResponse,
+} from '../../../../domain/ports/out/wompi.service.port';
+import { TransactionStatus } from '../../../../domain/entities/transaction.entity';
+
+@Injectable()
+export class WompiService implements WompiServicePort {
+  private readonly httpClient: AxiosInstance;
+  private readonly privateKey: string;
+  private readonly integritySecret: string;
+
+  constructor(private readonly configService: ConfigService) {
+    const apiUrl = this.configService.get<string>('WOMPI_API_URL', 'https://api-sandbox.co.uat.wompi.dev/v1');
+    this.privateKey = (this.configService.get<string>('WOMPI_PRIVATE_KEY', '') || '').trim();
+    this.integritySecret = (this.configService.get<string>('WOMPI_INTEGRITY_SECRET', '') || '').trim();
+
+    this.httpClient = axios.create({
+      baseURL: apiUrl,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+  }
+
+  async createTransaction(
+    data: CreateWompiTransactionData,
+  ): Promise<WompiTransactionResponse> {
+    // Generate signature for integrity
+    const signature = this.generateSignature(
+      data.reference,
+      data.amountInCents,
+      'COP',
+    );
+
+    const payload = {
+      acceptance_token: data.acceptanceToken,
+      accept_personal_auth: data.acceptPersonalAuth,
+      amount_in_cents: data.amountInCents,
+      currency: 'COP',
+      signature, // Wompi espera string (checksum), no objeto
+      customer_email: data.customerEmail,
+      reference: data.reference,
+      payment_method: {
+        type: 'CARD',
+        token: data.paymentToken,
+        installments: data.installments,
+      },
+    };
+
+    try {
+      const response = await this.httpClient.post('/transactions', payload, {
+        headers: {
+          Authorization: `Bearer ${this.privateKey}`,
+        },
+      });
+
+      return {
+        id: response.data.data.id,
+        status: this.mapWompiStatus(response.data.data.status),
+        reference: response.data.data.reference,
+        amountInCents: response.data.data.amount_in_cents,
+      };
+    } catch (error: unknown) {
+      console.error('Error creating Wompi transaction:', (error as { response?: { data?: unknown } })?.response?.data);
+      const messages = (error as { response?: { data?: { error?: { messages?: unknown } } } })?.response?.data?.error?.messages;
+      const messageStr = Array.isArray(messages)
+        ? messages.join(', ')
+        : typeof messages === 'string'
+          ? messages
+          : messages != null
+            ? JSON.stringify(messages)
+            : (error as Error)?.message ?? 'Unknown error';
+      throw new Error(`Failed to create Wompi transaction: ${messageStr}`);
+    }
+  }
+
+  async getTransaction(wompiTxnId: string): Promise<WompiTransactionResponse> {
+    try {
+      const response = await this.httpClient.get(
+        `/transactions/${wompiTxnId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${this.privateKey}`,
+          },
+        },
+      );
+
+      return {
+        id: response.data.data.id,
+        status: this.mapWompiStatus(response.data.data.status),
+        reference: response.data.data.reference,
+        amountInCents: response.data.data.amount_in_cents,
+      };
+    } catch (error) {
+      console.error('Error fetching Wompi transaction:', error.response?.data);
+      throw new Error(
+        `Failed to fetch Wompi transaction: ${error.message}`,
+      );
+    }
+  }
+
+  validateWebhookSignature(payload: any, signature: string): boolean {
+    try {
+      // Wompi sends the signature in the header X-Event-Checksum
+      // We need to validate it using the events secret
+      const eventsSecret = this.configService.get<string>('WOMPI_EVENTS_KEY', '');
+
+      // Concatenate: event_id.event_type.timestamp
+      const concatenated = `${payload.event}.${payload.data.transaction.id}.${payload.timestamp}`;
+
+      const calculatedSignature = crypto
+        .createHmac('sha256', eventsSecret)
+        .update(concatenated)
+        .digest('hex');
+
+      return calculatedSignature === signature;
+    } catch (error) {
+      console.error('Error validating webhook signature:', error);
+      return false;
+    }
+  }
+
+  private generateSignature(
+    reference: string,
+    amountInCents: number,
+    currency: string,
+  ): string {
+    // Signature format: reference + amount_in_cents + currency + integrity_secret
+    const concatenated = `${reference}${amountInCents}${currency}${this.integritySecret}`;
+
+    return crypto.createHash('sha256').update(concatenated).digest('hex');
+  }
+
+  private mapWompiStatus(wompiStatus: string): TransactionStatus {
+    const statusMap: Record<string, TransactionStatus> = {
+      PENDING: TransactionStatus.PENDING,
+      APPROVED: TransactionStatus.APPROVED,
+      DECLINED: TransactionStatus.DECLINED,
+      ERROR: TransactionStatus.ERROR,
+      VOIDED: TransactionStatus.VOIDED,
+    };
+
+    return statusMap[wompiStatus] || TransactionStatus.ERROR;
+  }
+}
