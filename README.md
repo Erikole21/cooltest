@@ -55,7 +55,14 @@ cooltest/
 │   ├── prisma/             # Schema y Seeds
 │   ├── postman_collection.json
 │   └── README.md
-├── frontend/                # SPA React (Pendiente - Fase 2)
+├── frontend/                # SPA React + Vite + Redux
+│   ├── src/
+│   │   ├── api/            # Cliente API y Wompi
+│   │   ├── components/     # ProductCard, formularios, resumen, resultado
+│   │   ├── store/           # Redux (products, checkout) + persistencia
+│   │   ├── pages/           # ProductsPage, CheckoutPage
+│   │   └── hooks/           # useTransactionUpdate (Socket.IO)
+│   └── .env.example
 ├── docker-compose.yml      # PostgreSQL + Redis
 └── README.md               # Este archivo
 ```
@@ -101,7 +108,22 @@ El backend quedará en: **http://localhost:3000/api/v1**
 
 **Tests:** Desde `backend/`: `npm run test` o `npm run test:cov` (cobertura >80%).
 
-### 3. Probar con Postman
+### Frontend (desde otra terminal)
+
+Desde la raíz de `cooltest/`:
+
+```bash
+cd frontend
+npm install
+cp .env.example .env   # opcional; ya trae valores por defecto
+npm run dev
+```
+
+La app quedará en **http://localhost:5173**. El proxy de Vite redirige `/api` y `/socket.io` al backend en `localhost:3000`.
+
+Flujo: Productos → Pagar con tarjeta → Datos tarjeta/entrega → Resumen → Pago → Resultado → Volver a productos.
+
+### Probar con Postman
 
 Importar `backend/postman_collection.json` en Postman y probar los endpoints:
 
@@ -125,7 +147,11 @@ Ver [backend/README.md](backend/README.md) para:
 - Troubleshooting
 
 ### Frontend
-**Pendiente:** Se implementará en la Fase 2 del proyecto.
+Ver [frontend/README.md](frontend/README.md) para:
+- Cómo ejecutar y construir
+- Redux (products, checkout) y persistencia en `localStorage`
+- Integración Wompi (tokens desde el navegador)
+- Socket.IO para actualización de transacciones
 
 ## Estado del Proyecto
 
@@ -143,17 +169,20 @@ Ver [backend/README.md](backend/README.md) para:
 - [x] Postman Collection
 - [x] README completo
 
-### 🔄 Fase 2: Frontend (Pendiente)
-- [ ] React + Redux + TypeScript + Vite
-- [ ] TailwindCSS + Headless UI
-- [ ] 4 rutas principales
-- [ ] Integración con backend
-- [ ] Socket.IO client
-- [ ] Flujo completo end-to-end
+### ✅ Fase 2: Frontend (Completada)
+- [x] React + Redux Toolkit + TypeScript + Vite
+- [x] TailwindCSS
+- [x] Rutas: `/` (productos), `/checkout` (pasos 2–4)
+- [x] Integración con backend (proxy `/api`, `/socket.io`)
+- [x] Socket.IO client para `transaction-update`
+- [x] Flujo completo: productos → tarjeta/entrega → resumen → pago → resultado
+- [x] Validación tarjeta (Luhn), detección VISA/Mastercard
+- [x] Persistencia del progreso de checkout en `localStorage`
+- [x] Diseño responsive (mobile-first)
 
-### ✅ Fase 3: Testing Backend (Completada)
+### ✅ Fase 3: Testing (Completada)
 - [x] Tests unitarios Backend con Jest (>80% cobertura)
-- [ ] Tests unitarios Frontend (>80% cobertura) — pendiente con Fase 2
+- [x] Tests unitarios Frontend con Vitest + React Testing Library (>80% cobertura en líneas)
 
 ### 🔄 Fase 4: Deployment AWS (Pendiente)
 - [ ] Backend desplegado
@@ -173,7 +202,7 @@ Todos con prefijo `/api/v1`:
 | GET | `/customers/:id` | Obtener un cliente |
 | GET | `/deliveries/:id` | Obtener una entrega |
 | GET | `/transactions/:id` | Obtener una transacción |
-| POST | `/checkout` | Crear transacción de pago |
+| POST | `/checkout` | Crear transacción de pago (reserva stock; puede devolver 404 si el producto no existe o 409 si no hay stock suficiente) |
 | POST | `/webhooks/wompi` | Recibir notificaciones Wompi |
 
 ## Credenciales Wompi Sandbox

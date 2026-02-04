@@ -27,6 +27,7 @@ describe('CheckoutUseCase', () => {
           provide: PRODUCT_REPOSITORY,
           useValue: {
             findById: jest.fn(),
+            reserveStock: jest.fn(),
           },
         },
         {
@@ -47,6 +48,7 @@ describe('CheckoutUseCase', () => {
             create: jest.fn(),
             updateReference: jest.fn(),
             updateStatus: jest.fn(),
+            finalizeStatus: jest.fn(),
           },
         },
         {
@@ -149,6 +151,7 @@ describe('CheckoutUseCase', () => {
       };
 
       productRepository.findById.mockResolvedValue(mockProduct);
+      productRepository.reserveStock.mockResolvedValue(true);
       customerRepository.create.mockResolvedValue(mockCustomer);
       deliveryRepository.create.mockResolvedValue(mockDelivery);
       transactionRepository.create.mockResolvedValue(mockTransaction);
@@ -172,7 +175,7 @@ describe('CheckoutUseCase', () => {
       const result = await useCase.execute(mockInput);
 
       expect(result.success).toBe(false);
-      expect(result.error).toBe('Product not found');
+      expect(result.error).toBe('Producto no encontrado');
       expect(customerRepository.create).not.toHaveBeenCalled();
     });
 
@@ -188,11 +191,13 @@ describe('CheckoutUseCase', () => {
       });
 
       productRepository.findById.mockResolvedValue(mockProduct);
+      productRepository.reserveStock.mockResolvedValue(false);
+      productRepository.reserveStock.mockResolvedValue(false);
 
       const result = await useCase.execute(mockInput);
 
       expect(result.success).toBe(false);
-      expect(result.error).toBe('Insufficient stock');
+      expect(result.error).toBe('No hay stock suficiente para esta cantidad.');
       expect(customerRepository.create).not.toHaveBeenCalled();
     });
 
@@ -239,6 +244,7 @@ describe('CheckoutUseCase', () => {
       });
 
       productRepository.findById.mockResolvedValue(mockProduct);
+      productRepository.reserveStock.mockResolvedValue(true);
       customerRepository.create.mockResolvedValue(mockCustomer);
       deliveryRepository.create.mockResolvedValue(mockDelivery);
       transactionRepository.create.mockResolvedValue(mockTransaction);
@@ -262,6 +268,7 @@ describe('CheckoutUseCase', () => {
       });
 
       productRepository.findById.mockResolvedValue(mockProduct);
+      productRepository.reserveStock.mockResolvedValue(true);
       customerRepository.create.mockResolvedValue({ id: 1 });
       deliveryRepository.create.mockResolvedValue({ id: 1 });
       transactionRepository.create.mockResolvedValue({ id: 1, reference: 'TXN-1' });

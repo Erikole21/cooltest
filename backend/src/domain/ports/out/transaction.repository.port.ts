@@ -13,6 +13,7 @@ export interface CreateTransactionData {
   deliveryFee: number;
   total: number;
   reference: string;
+  reservedUntil?: Date;
 }
 
 export interface TransactionRepositoryPort {
@@ -25,6 +26,12 @@ export interface TransactionRepositoryPort {
     wompiTxnId?: string,
   ): Promise<TransactionEntity>;
   updateReference(id: number, reference: string): Promise<TransactionEntity>;
+  finalizeStatus(
+    id: number,
+    status: TransactionStatus,
+    wompiTxnId?: string,
+  ): Promise<TransactionEntity>;
+  findExpiredPendingReservations(now: Date): Promise<TransactionEntity[]>;
 }
 
 export const TRANSACTION_REPOSITORY = Symbol('TRANSACTION_REPOSITORY');

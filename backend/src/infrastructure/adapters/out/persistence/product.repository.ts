@@ -7,24 +7,25 @@ import { ProductEntity } from '../../../../domain/entities/product.entity';
 export class ProductRepository implements ProductRepositoryPort {
   constructor(private readonly prisma: PrismaService) {}
 
+  private toEntity(p: any): ProductEntity {
+    return new ProductEntity({
+      ...p,
+      imageUrl: p.imageUrl || undefined,
+    });
+  }
+
   async findAll(): Promise<ProductEntity[]> {
     const products = await this.prisma.product.findMany({
       orderBy: { createdAt: 'desc' },
     });
-    return products.map((p) => new ProductEntity({
-      ...p,
-      imageUrl: p.imageUrl || undefined,
-    }));
+    return products.map((p) => this.toEntity(p));
   }
 
   async findById(id: number): Promise<ProductEntity | null> {
     const product = await this.prisma.product.findUnique({
       where: { id },
     });
-    return product ? new ProductEntity({
-      ...product,
-      imageUrl: product.imageUrl || undefined,
-    }) : null;
+    return product ? this.toEntity(product) : null;
   }
 
   async updateStock(id: number, quantity: number): Promise<ProductEntity> {
@@ -36,9 +37,38 @@ export class ProductRepository implements ProductRepositoryPort {
         },
       },
     });
-    return new ProductEntity({
-      ...product,
-      imageUrl: product.imageUrl || undefined,
-    });
+    return this.toEntity(product);
+  }
+
+  async reserveStock(id: number, quantity: number): Promise<boolean> {
+    const updated = await this.prisma.$executeRaw`
+      UPDATE "products"
+      SET "reserved_quantity" = "reserved_quantity" + ${quantity}
+      WHERE "id" = ${id}
+        AND ("stock_quantity" - "reserved_quantity") >= ${quantity}
+    `;
+    return Number(updated) > 0;
+  }
+
+  async releaseReservedStock(id: number, quantity: number): Promise<boolean> {
+    const updated = await this.prisma.$executeRaw`
+      UPDATE "products"
+      SET "reserved_quantity" = "reserved_quantity" - ${quantity}
+      WHERE "id" = ${id}
+        AND "reserved_quantity" >= ${quantity}
+    `;
+    return Number(updated) > 0;
+  }
+
+  async commitReservedStock(id: number, quantity: number): Promise<boolean> {
+    const updated = await this.prisma.$executeRaw`
+      UPDATE "products"
+      SET "stock_quantity" = "stock_quantity" - ${quantity},
+          "reserved_quantity" = "reserved_quantity" - ${quantity}
+      WHERE "id" = ${id}
+        AND "reserved_quantity" >= ${quantity}
+        AND "stock_quantity" >= ${quantity}
+    `;
+    return Number(updated) > 0;
   }
 }

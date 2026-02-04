@@ -17,6 +17,7 @@ import { CheckoutUseCase } from './application/use-cases/checkout.use-case';
 
 // Processors
 import { TransactionPollingProcessor } from './application/services/transaction-polling.processor';
+import { ReservationExpiryScheduler } from './application/services/reservation-expiry.scheduler';
 
 // Controllers
 import { ProductsController } from './infrastructure/adapters/in/controllers/products.controller';
@@ -94,6 +95,7 @@ import { WOMPI_SERVICE } from './domain/ports/out/wompi.service.port';
     CheckoutUseCase,
     // Processors
     TransactionPollingProcessor,
+    ReservationExpiryScheduler,
     // Gateways
     TransactionGateway,
   ],

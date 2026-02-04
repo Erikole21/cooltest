@@ -4,6 +4,7 @@ export class ProductEntity {
   description: string;
   price: number; // Price in cents
   stockQuantity: number;
+  reservedQuantity: number;
   imageUrl?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -13,7 +14,8 @@ export class ProductEntity {
   }
 
   hasStock(quantity: number): boolean {
-    return this.stockQuantity >= quantity;
+    const available = this.stockQuantity - (this.reservedQuantity ?? 0);
+    return available >= quantity;
   }
 
   decrementStock(quantity: number): void {

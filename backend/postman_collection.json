@@ -115,7 +115,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["checkout"]
             },
-            "description": "Create a checkout transaction. You need to obtain the paymentToken, acceptanceToken, and acceptPersonalAuth from Wompi first."
+            "description": "Create a checkout transaction.\n\nNotes:\n- You must obtain paymentToken, acceptanceToken, and acceptPersonalAuth from Wompi first.\n- If the product does not exist, the API responds 404.\n- If there is not enough stock for the requested quantity, the API responds 409 (conflict) with a user-friendly message."
           }
         }
       ]

@@ -19,6 +19,9 @@ export class TransactionEntity {
   status: TransactionStatus;
   wompiTxnId?: string;
   reference: string;
+  reservedUntil?: Date;
+  stockCommittedAt?: Date;
+  stockReleasedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 

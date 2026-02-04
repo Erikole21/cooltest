@@ -10,7 +10,10 @@ import { TRANSACTION_REPOSITORY } from '../../domain/ports/out/transaction.repos
 import type { TransactionRepositoryPort } from '../../domain/ports/out/transaction.repository.port';
 import { WOMPI_SERVICE } from '../../domain/ports/out/wompi.service.port';
 import type { WompiServicePort } from '../../domain/ports/out/wompi.service.port';
-import { TransactionEntity } from '../../domain/entities/transaction.entity';
+import {
+  TransactionEntity,
+  TransactionStatus,
+} from '../../domain/entities/transaction.entity';
 
 export interface CheckoutInput {
   productId: number;
@@ -36,6 +39,7 @@ export interface CheckoutResult {
   status?: string;
   total?: number;
   error?: string;
+  code?: 'PRODUCT_NOT_FOUND' | 'INSUFFICIENT_STOCK' | 'CHECKOUT_FAILED';
 }
 
 @Injectable()
@@ -59,11 +63,24 @@ export class CheckoutUseCase {
       // 1. Validate product and stock
       const product = await this.productRepository.findById(input.productId);
       if (!product) {
-        return { success: false, error: 'Product not found' };
+        return {
+          success: false,
+          error: 'Producto no encontrado',
+          code: 'PRODUCT_NOT_FOUND',
+        };
       }
 
-      if (!product.hasStock(input.quantity)) {
-        return { success: false, error: 'Insufficient stock' };
+      // 1.1 Reserve stock atomically (prevents overselling while PENDING)
+      const reserved = await this.productRepository.reserveStock(
+        input.productId,
+        input.quantity,
+      );
+      if (!reserved) {
+        return {
+          success: false,
+          error: 'No hay stock suficiente para esta cantidad.',
+          code: 'INSUFFICIENT_STOCK',
+        };
       }
 
       // 2. Calculate fees and total
@@ -75,6 +92,11 @@ export class CheckoutUseCase {
         this.configService.get<string>('DELIVERY_FEE_CENTS', '0'),
       );
       const total = unitPrice * input.quantity + baseFee + deliveryFee;
+
+      const reservationTtlSeconds = parseInt(
+        this.configService.get<string>('RESERVATION_TTL_SECONDS', '900'),
+      );
+      const reservedUntil = new Date(Date.now() + reservationTtlSeconds * 1000);
 
       // 3. Create customer and delivery
       const customer = await this.customerRepository.create({
@@ -100,6 +122,7 @@ export class CheckoutUseCase {
         deliveryFee,
         total,
         reference: tempReference,
+        reservedUntil,
       });
 
       // 5. Persist reference TXN-{id} para que el webhook pueda matchear por reference
@@ -124,6 +147,22 @@ export class CheckoutUseCase {
         wompiResponse.id,
       );
 
+      // If Wompi returned a final status immediately, finalize (commit/release reservation) now.
+      if (
+        [
+          TransactionStatus.APPROVED,
+          TransactionStatus.DECLINED,
+          TransactionStatus.ERROR,
+          TransactionStatus.VOIDED,
+        ].includes(wompiResponse.status as TransactionStatus)
+      ) {
+        await this.transactionRepository.finalizeStatus(
+          transaction.id,
+          wompiResponse.status as TransactionStatus,
+          wompiResponse.id,
+        );
+      }
+
       return {
         success: true,
         transactionId: transaction.id,
@@ -132,9 +171,13 @@ export class CheckoutUseCase {
       };
     } catch (error) {
       console.error('Checkout use case error:', error);
+      // Best effort: if anything failed after reserving but before finalizing, release is handled by expiry job.
       return {
         success: false,
-        error: error.message || 'Checkout failed',
+        error:
+          (error as Error)?.message ||
+          'No se pudo procesar el pago. Intenta nuevamente.',
+        code: 'CHECKOUT_FAILED',
       };
     }
   }

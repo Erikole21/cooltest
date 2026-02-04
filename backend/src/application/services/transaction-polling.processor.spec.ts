@@ -2,7 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { TransactionPollingProcessor } from './transaction-polling.processor';
 import { TRANSACTION_REPOSITORY } from '../../domain/ports/out/transaction.repository.port';
 import { WOMPI_SERVICE } from '../../domain/ports/out/wompi.service.port';
-import { PRODUCT_REPOSITORY } from '../../domain/ports/out/product.repository.port';
 import { TransactionEntity, TransactionStatus } from '../../domain/entities/transaction.entity';
 import { TransactionGateway } from '../../infrastructure/adapters/in/gateways/transaction.gateway';
 import { getQueueToken } from '@nestjs/bull';
@@ -11,7 +10,6 @@ describe('TransactionPollingProcessor', () => {
   let processor: TransactionPollingProcessor;
   let transactionRepository: any;
   let wompiService: any;
-  let productRepository: any;
   let transactionGateway: any;
   let pollingQueue: any;
 
@@ -24,18 +22,13 @@ describe('TransactionPollingProcessor', () => {
           useValue: {
             findById: jest.fn(),
             updateStatus: jest.fn(),
+            finalizeStatus: jest.fn(),
           },
         },
         {
           provide: WOMPI_SERVICE,
           useValue: {
             getTransaction: jest.fn(),
-          },
-        },
-        {
-          provide: PRODUCT_REPOSITORY,
-          useValue: {
-            updateStock: jest.fn(),
           },
         },
         {
@@ -56,7 +49,6 @@ describe('TransactionPollingProcessor', () => {
     processor = module.get<TransactionPollingProcessor>(TransactionPollingProcessor);
     transactionRepository = module.get(TRANSACTION_REPOSITORY);
     wompiService = module.get(WOMPI_SERVICE);
-    productRepository = module.get(PRODUCT_REPOSITORY);
     transactionGateway = module.get<TransactionGateway>(TransactionGateway);
     pollingQueue = module.get(getQueueToken('transaction-polling'));
   });
@@ -169,16 +161,15 @@ describe('TransactionPollingProcessor', () => {
 
       transactionRepository.findById.mockResolvedValue(mockTransaction);
       wompiService.getTransaction.mockResolvedValue(mockWompiResponse);
-      transactionRepository.updateStatus.mockResolvedValue(mockTransaction);
+      transactionRepository.finalizeStatus.mockResolvedValue(mockTransaction);
 
       await processor.handlePollTransaction(mockJob as any);
 
-      expect(transactionRepository.updateStatus).toHaveBeenCalledWith(
+      expect(transactionRepository.finalizeStatus).toHaveBeenCalledWith(
         1,
         TransactionStatus.APPROVED,
         'wompi-123',
       );
-      expect(productRepository.updateStock).toHaveBeenCalledWith(1, 2);
       expect(transactionGateway.emitTransactionUpdate).toHaveBeenCalledWith(
         1,
         TransactionStatus.APPROVED,

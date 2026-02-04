@@ -295,13 +295,13 @@ Integración vía API Keys (el usuario de prueba puede cerrarse si hay acceso de
 
 | Entidad | Campos principales | Notas |
 |---------|--------------------|-------|
-| **Product** | id, name, description, price (centavos COP), stock_quantity, image_url | Stock se decrementa al aprobar transacción; image_url para imágenes de productos |
-| **Transaction** | id (PK, **autoincrement**), product_id, customer_id, delivery_id, quantity, unit_price, base_fee, delivery_fee, total, status (PENDING \| APPROVED \| DECLINED \| ERROR \| **VOIDED**), wompi_txn_id, reference | reference = prefijo + id para Wompi (ej. `TXN-123`); formato alfanumérico según acepte Wompi |
+| **Product** | id, name, description, price (centavos COP), stock_quantity, reserved_quantity, image_url | `stock_quantity` es el stock físico; `reserved_quantity` es stock reservado para checkouts en curso; el stock definitivo se descuenta solo al aprobar transacción; image_url para imágenes de productos |
+| **Transaction** | id (PK, **autoincrement**), product_id, customer_id, delivery_id, quantity, unit_price, base_fee, delivery_fee, total, status (PENDING \| APPROVED \| DECLINED \| ERROR \| **VOIDED**), wompi_txn_id, reference, reserved_until, stock_committed_at, stock_released_at | reference = prefijo + id para Wompi (ej. `TXN-123`); `reserved_until` define el TTL de la reserva; `stock_committed_at`/`stock_released_at` hacen el flujo idempotente |
 | **Customer** | id, email, full_name | Datos del comprador |
 | **Delivery** | id, address, city, phone | Datos de entrega |
 | **WompiWebhookEvent** | id, event_type, payload (JSONB), received_at, transaction_id (FK opcional) | Guardar **tal cual** el body del webhook como soporte/auditoría; opcionalmente vincular a nuestra Transaction por `reference`. |
 
-**Status de transacción:** `PENDING` → tras crear; `APPROVED` / `DECLINED` / `ERROR` / `VOIDED` según respuesta de Wompi. **Reference:** generado como prefijo + id de nuestra Transaction (ej. `TXN-1`, `TXN-2`); el id es **autonumérico** (serial). Verificar en documentación Wompi longitud/caracteres permitidos para `reference`.
+**Status de transacción:** `PENDING` → tras crear/reservar stock; `APPROVED` / `DECLINED` / `ERROR` / `VOIDED` según respuesta de Wompi o expiración de la reserva. **Reference:** generado como prefijo + id de nuestra Transaction (ej. `TXN-1`, `TXN-2`); el id es **autonumérico** (serial). Verificar en documentación Wompi longitud/caracteres permitidos para `reference`.
 
 **Productos seed:** Crear mínimo 5-10 productos de tecnología (smartphones, laptops, tablets, accesorios). Usar URLs de imágenes públicas optimizadas (CDNs, Unsplash, etc.). Precios en centavos COP realistas.
 
@@ -325,10 +325,10 @@ Integración vía API Keys (el usuario de prueba puede cerrarse si hay acceso de
 
 **Flujo de checkout (POST /api/v1/checkout):**
 
-1. Validar productId, quantity, stock disponible.
+1. Validar `productId`, `quantity` y **reservar stock** de forma atómica (`reserved_quantity += quantity` si `stock_quantity - reserved_quantity >= quantity`); si no, responder error de stock.
 2. Calcular: `unit_price` del producto, `base_fee`, `delivery_fee`, `total` (desde env).
 3. Crear Customer y Delivery.
-4. Crear Transaction en PENDING; **id** autonumérico; **reference** = prefijo + id (ej. `TXN-{id}`).
+4. Crear Transaction en `PENDING` con `reserved_until` (TTL de la reserva); **id** autonumérico; **reference** = prefijo + id (ej. `TXN-{id}`).
 5. Llamar a Wompi: `POST /v1/transactions` con reference, token, amount_in_cents, etc.; guardar `wompi_txn_id`.
 6. Encolar job Bull para polling de respaldo (ver §17).
 7. Devolver `{ transactionId: <id numérico>, status: "PENDING", ... }`. Frontend **redirige a `/result/:transactionId`** y escucha el **socket** hasta recibir la notificación de cambio de estado (o timeout/fallback).

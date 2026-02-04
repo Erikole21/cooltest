@@ -11,8 +11,6 @@ import { TRANSACTION_REPOSITORY } from '../../../../domain/ports/out/transaction
 import type { TransactionRepositoryPort } from '../../../../domain/ports/out/transaction.repository.port';
 import { WOMPI_SERVICE } from '../../../../domain/ports/out/wompi.service.port';
 import type { WompiServicePort } from '../../../../domain/ports/out/wompi.service.port';
-import { PRODUCT_REPOSITORY } from '../../../../domain/ports/out/product.repository.port';
-import type { ProductRepositoryPort } from '../../../../domain/ports/out/product.repository.port';
 import { TransactionStatus } from '../../../../domain/entities/transaction.entity';
 import { TransactionGateway } from '../gateways/transaction.gateway';
 
@@ -24,8 +22,6 @@ export class WebhooksController {
     private readonly transactionRepository: TransactionRepositoryPort,
     @Inject(WOMPI_SERVICE)
     private readonly wompiService: WompiServicePort,
-    @Inject(PRODUCT_REPOSITORY)
-    private readonly productRepository: ProductRepositoryPort,
     private readonly transactionGateway: TransactionGateway,
   ) {}
 
@@ -92,22 +88,11 @@ export class WebhooksController {
                 TransactionStatus.VOIDED,
               ].includes(mappedStatus)
             ) {
-              await this.transactionRepository.updateStatus(
+              await this.transactionRepository.finalizeStatus(
                 transaction.id,
                 mappedStatus,
                 wompiTxnId,
               );
-
-              // If APPROVED, decrement stock
-              if (mappedStatus === TransactionStatus.APPROVED) {
-                await this.productRepository.updateStock(
-                  transaction.productId,
-                  transaction.quantity,
-                );
-                console.log(
-                  `📦 Stock decremented for product ${transaction.productId}`,
-                );
-              }
 
               console.log(
                 `✅ Transaction ${transaction.id} updated to ${mappedStatus} via webhook`,

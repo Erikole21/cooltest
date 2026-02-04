@@ -3,7 +3,6 @@ import { WebhooksController } from './webhooks.controller';
 import { PrismaService } from '../../../config/prisma.service';
 import { TRANSACTION_REPOSITORY } from '../../../../domain/ports/out/transaction.repository.port';
 import { WOMPI_SERVICE } from '../../../../domain/ports/out/wompi.service.port';
-import { PRODUCT_REPOSITORY } from '../../../../domain/ports/out/product.repository.port';
 import { TransactionGateway } from '../gateways/transaction.gateway';
 import { TransactionEntity, TransactionStatus } from '../../../../domain/entities/transaction.entity';
 
@@ -12,7 +11,6 @@ describe('WebhooksController', () => {
   let prisma: any;
   let transactionRepository: any;
   let wompiService: any;
-  let productRepository: any;
   let transactionGateway: any;
 
   beforeEach(async () => {
@@ -22,12 +20,10 @@ describe('WebhooksController', () => {
     transactionRepository = {
       findByReference: jest.fn(),
       updateStatus: jest.fn().mockResolvedValue({}),
+      finalizeStatus: jest.fn().mockResolvedValue({}),
     };
     wompiService = {
       validateWebhookSignature: jest.fn().mockReturnValue(true),
-    };
-    productRepository = {
-      updateStock: jest.fn().mockResolvedValue(undefined),
     };
     transactionGateway = {
       emitTransactionUpdate: jest.fn(),
@@ -39,7 +35,6 @@ describe('WebhooksController', () => {
         { provide: PrismaService, useValue: prisma },
         { provide: TRANSACTION_REPOSITORY, useValue: transactionRepository },
         { provide: WOMPI_SERVICE, useValue: wompiService },
-        { provide: PRODUCT_REPOSITORY, useValue: productRepository },
         { provide: TransactionGateway, useValue: transactionGateway },
       ],
     }).compile();
@@ -98,12 +93,11 @@ describe('WebhooksController', () => {
       const result = await controller.handleWompiWebhook(payload, 'sig');
 
       expect(transactionRepository.findByReference).toHaveBeenCalledWith('TXN-1');
-      expect(transactionRepository.updateStatus).toHaveBeenCalledWith(
+      expect(transactionRepository.finalizeStatus).toHaveBeenCalledWith(
         1,
         TransactionStatus.APPROVED,
         'wompi-123',
       );
-      expect(productRepository.updateStock).toHaveBeenCalledWith(1, 2);
       expect(transactionGateway.emitTransactionUpdate).toHaveBeenCalledWith(
         1,
         TransactionStatus.APPROVED,
@@ -141,12 +135,11 @@ describe('WebhooksController', () => {
 
       await controller.handleWompiWebhook(payload, undefined);
 
-      expect(transactionRepository.updateStatus).toHaveBeenCalledWith(
+      expect(transactionRepository.finalizeStatus).toHaveBeenCalledWith(
         2,
         TransactionStatus.DECLINED,
         'wompi-456',
       );
-      expect(productRepository.updateStock).not.toHaveBeenCalled();
       expect(transactionGateway.emitTransactionUpdate).toHaveBeenCalledWith(
         2,
         TransactionStatus.DECLINED,
@@ -164,7 +157,7 @@ describe('WebhooksController', () => {
 
       const result = await controller.handleWompiWebhook(payload, undefined);
 
-      expect(transactionRepository.updateStatus).not.toHaveBeenCalled();
+      expect(transactionRepository.finalizeStatus).not.toHaveBeenCalled();
       expect(result).toEqual({ status: 'received' });
     });
 

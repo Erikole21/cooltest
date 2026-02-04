@@ -91,13 +91,18 @@ describe('CheckoutController', () => {
     it('should throw HttpException when checkout fails', async () => {
       const mockResult = {
         success: false,
-        error: 'Insufficient stock',
+        error: 'No hay stock suficiente para esta cantidad.',
+        code: 'INSUFFICIENT_STOCK',
       };
 
       checkoutUseCase.execute.mockResolvedValue(mockResult);
 
-      await expect(controller.checkout(mockCheckoutDto)).rejects.toThrow(HttpException);
-      await expect(controller.checkout(mockCheckoutDto)).rejects.toThrow('Insufficient stock');
+      await expect(controller.checkout(mockCheckoutDto)).rejects.toThrow(
+        HttpException,
+      );
+      await expect(controller.checkout(mockCheckoutDto)).rejects.toThrow(
+        'No hay stock suficiente para esta cantidad.',
+      );
       expect(pollingQueue.add).not.toHaveBeenCalled();
     });
 
@@ -133,7 +138,9 @@ describe('CheckoutController', () => {
 
       checkoutUseCase.execute.mockResolvedValue(mockResult);
 
-      await expect(controller.checkout(mockCheckoutDto)).rejects.toThrow('Checkout failed');
+      await expect(controller.checkout(mockCheckoutDto)).rejects.toThrow(
+        'No se pudo procesar el pago. Intenta nuevamente.',
+      );
     });
   });
 });

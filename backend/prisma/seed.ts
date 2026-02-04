@@ -60,7 +60,7 @@ async function main() {
         price: 4999000_00, // 4,999,000 COP in cents
         stockQuantity: 18,
         imageUrl:
-          'https://images.unsplash.com/photo-1585790050230-5dd28404f805?w=400&q=80',
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/IPad_Pro_M2_%2812.9_inch%29_6th_Generation_2024.jpg/640px-IPad_Pro_M2_%2812.9_inch%29_6th_Generation_2024.jpg',
       },
       {
         name: 'Sony WH-1000XM5',

@@ -7,8 +7,6 @@ import { TRANSACTION_REPOSITORY } from '../../domain/ports/out/transaction.repos
 import type { TransactionRepositoryPort } from '../../domain/ports/out/transaction.repository.port';
 import { WOMPI_SERVICE } from '../../domain/ports/out/wompi.service.port';
 import type { WompiServicePort } from '../../domain/ports/out/wompi.service.port';
-import { PRODUCT_REPOSITORY } from '../../domain/ports/out/product.repository.port';
-import type { ProductRepositoryPort } from '../../domain/ports/out/product.repository.port';
 import { TransactionStatus } from '../../domain/entities/transaction.entity';
 import { TransactionGateway } from '../../infrastructure/adapters/in/gateways/transaction.gateway';
 
@@ -19,8 +17,6 @@ export class TransactionPollingProcessor {
     private readonly transactionRepository: TransactionRepositoryPort,
     @Inject(WOMPI_SERVICE)
     private readonly wompiService: WompiServicePort,
-    @Inject(PRODUCT_REPOSITORY)
-    private readonly productRepository: ProductRepositoryPort,
     private readonly transactionGateway: TransactionGateway,
     @InjectQueue('transaction-polling') private readonly pollingQueue: Queue,
   ) {}
@@ -75,22 +71,11 @@ export class TransactionPollingProcessor {
           TransactionStatus.VOIDED,
         ].includes(wompiResponse.status)
       ) {
-        await this.transactionRepository.updateStatus(
+        await this.transactionRepository.finalizeStatus(
           transactionId,
           wompiResponse.status,
           wompiResponse.id,
         );
-
-        // 5. If APPROVED, decrement stock
-        if (wompiResponse.status === TransactionStatus.APPROVED) {
-          await this.productRepository.updateStock(
-            transaction.productId,
-            transaction.quantity,
-          );
-          console.log(
-            `📦 Stock decremented for product ${transaction.productId}`,
-          );
-        }
 
         console.log(
           `✅ Transaction ${transactionId} updated to status: ${wompiResponse.status}`,
@@ -123,6 +108,30 @@ export class TransactionPollingProcessor {
         error.message,
       );
       throw error; // Let Bull retry
+    }
+  }
+
+  @Process('expire-reservations')
+  async handleExpireReservations() {
+    const now = new Date();
+    const expired = await this.transactionRepository.findExpiredPendingReservations(
+      now,
+    );
+    if (expired.length === 0) return;
+
+    console.log(`🧹 Expiring ${expired.length} reservation(s)`);
+
+    for (const txn of expired) {
+      try {
+        await this.transactionRepository.finalizeStatus(
+          txn.id,
+          TransactionStatus.VOIDED,
+        );
+        this.transactionGateway.emitTransactionUpdate(txn.id, TransactionStatus.VOIDED);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error(`❌ Failed to expire reservation for txn ${txn.id}:`, msg);
+      }
     }
   }
 }

@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "allowImportingTsExtensions": false,
+    "verbatimModuleSyntax": false,
+    "types": ["vite/client", "node", "jest", "@testing-library/jest-dom"]
+  },
+  "include": ["src/**/*"]
+}

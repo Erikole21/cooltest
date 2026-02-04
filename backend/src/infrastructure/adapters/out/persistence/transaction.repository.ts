@@ -42,6 +42,7 @@ export class TransactionRepository implements TransactionRepositoryPort {
         deliveryFee: data.deliveryFee,
         total: data.total,
         reference: data.reference,
+        ...(data.reservedUntil && { reservedUntil: data.reservedUntil }),
         status: PrismaTransactionStatus.PENDING,
       },
     });
@@ -88,5 +89,100 @@ export class TransactionRepository implements TransactionRepositoryPort {
       data: { reference },
     });
     return this.toEntity(transaction);
+  }
+
+  async finalizeStatus(
+    id: number,
+    status: TransactionStatus,
+    wompiTxnId?: string,
+  ): Promise<TransactionEntity> {
+    return this.prisma.$transaction(async (tx) => {
+      const current = await tx.transaction.findUnique({ where: { id } });
+      if (!current) throw new Error('Transaction not found');
+
+      const currentStatus = this.toDomainStatus(current.status);
+      const isCurrentFinal = [
+        TransactionStatus.APPROVED,
+        TransactionStatus.DECLINED,
+        TransactionStatus.ERROR,
+        TransactionStatus.VOIDED,
+      ].includes(currentStatus);
+
+      // If already final, don't touch stock twice; still ensure wompiTxnId is set if provided.
+      if (isCurrentFinal) {
+        if (wompiTxnId && !current.wompiTxnId) {
+          const updated = await tx.transaction.update({
+            where: { id },
+            data: { wompiTxnId },
+          });
+          return this.toEntity(updated);
+        }
+        return this.toEntity(current);
+      }
+
+      const updated = await tx.transaction.update({
+        where: { id },
+        data: {
+          status: this.toPrismaStatus(status),
+          ...(wompiTxnId && { wompiTxnId }),
+        },
+      });
+
+      if (status === TransactionStatus.APPROVED) {
+        // Commit reservation -> decrement stock + reserved (idempotent per stockCommittedAt)
+        if (!updated.stockCommittedAt) {
+          const ok = await tx.$executeRaw`
+            UPDATE "products"
+            SET "stock_quantity" = "stock_quantity" - ${updated.quantity},
+                "reserved_quantity" = "reserved_quantity" - ${updated.quantity}
+            WHERE "id" = ${updated.productId}
+              AND "reserved_quantity" >= ${updated.quantity}
+              AND "stock_quantity" >= ${updated.quantity}
+          `;
+          if (Number(ok) === 0) {
+            // Fallback for legacy transactions without reservation: try direct decrement
+            await tx.$executeRaw`
+              UPDATE "products"
+              SET "stock_quantity" = "stock_quantity" - ${updated.quantity}
+              WHERE "id" = ${updated.productId}
+                AND "stock_quantity" >= ${updated.quantity}
+            `;
+          }
+          await tx.transaction.update({
+            where: { id },
+            data: { stockCommittedAt: new Date() },
+          });
+        }
+      } else {
+        // Release reservation for any non-approved final status
+        if (!updated.stockReleasedAt) {
+          await tx.$executeRaw`
+            UPDATE "products"
+            SET "reserved_quantity" = "reserved_quantity" - ${updated.quantity}
+            WHERE "id" = ${updated.productId}
+              AND "reserved_quantity" >= ${updated.quantity}
+          `;
+          await tx.transaction.update({
+            where: { id },
+            data: { stockReleasedAt: new Date() },
+          });
+        }
+      }
+
+      const finalTx = await tx.transaction.findUnique({ where: { id } });
+      return this.toEntity(finalTx);
+    });
+  }
+
+  async findExpiredPendingReservations(now: Date): Promise<TransactionEntity[]> {
+    const txns = await this.prisma.transaction.findMany({
+      where: {
+        status: PrismaTransactionStatus.PENDING,
+        reservedUntil: { lt: now },
+        stockReleasedAt: null,
+        stockCommittedAt: null,
+      },
+    });
+    return txns.map((t) => this.toEntity(t));
   }
 }

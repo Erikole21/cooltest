@@ -351,12 +351,19 @@ src/
 
 ### Product
 - Productos de tecnología con stock
-- Stock se decrementa al aprobar una transacción
+- Campos clave:
+  - `stock_quantity`: stock físico total
+  - `reserved_quantity`: stock reservado temporalmente para checkouts en curso
+- El stock **se reserva** al iniciar un checkout y solo se **descuenta definitivamente** al aprobar una transacción (APPROVED)
 
 ### Transaction
 - Estados: `PENDING`, `APPROVED`, `DECLINED`, `ERROR`, `VOIDED`
 - Referencia: `TXN-{id}` (generada automáticamente)
 - Incluye fees configurables
+- Campos extra para control de reservas:
+  - `reserved_until`: TTL de la reserva de stock
+  - `stock_committed_at`: cuándo se descontó definitivamente el stock
+  - `stock_released_at`: cuándo se liberó una reserva (por rechazo/expiración)
 
 ### Customer
 - Información del comprador
@@ -369,30 +376,32 @@ src/
 
 ## Flujo de Checkout
 
-1. **Validar producto y stock** disponible
-2. **Calcular fees y total** (producto + base_fee + delivery_fee)
-3. **Crear Customer y Delivery**
-4. **Crear Transaction** en estado `PENDING`
-5. **Llamar a Wompi** para crear la transacción con firma de integridad
-6. **Actualizar Transaction** con el ID de Wompi
-7. **Encolar job Bull** para polling de respaldo (10s → 5×10min)
-8. **Retornar** el ID de la transacción al frontend
+1. **Validar producto y stock** disponible y **reservar stock** atómicamente (`reserved_quantity += quantity` si hay stock suficiente).
+2. **Calcular fees y total** (producto + `BASE_FEE_CENTS` + `DELIVERY_FEE_CENTS`).
+3. **Crear Customer y Delivery**.
+4. **Crear Transaction** en estado `PENDING` con `reserved_until`.
+5. **Llamar a Wompi** para crear la transacción con firma de integridad.
+6. **Actualizar Transaction** con el ID de Wompi.
+7. **Encolar job Bull** para polling de respaldo (10s → 5×10min).
+8. **Retornar** el ID de la transacción al frontend.
 
 ## Actualización de Estado de Transacción
 
-Se soportan **dos vías**:
+Se soportan **dos vías** y ambas usan el mismo flujo idempotente de stock:
 
 ### 1. Webhook (inmediato)
 - Wompi notifica cambios vía `POST /api/v1/webhooks/wompi`
 - Se valida la firma (`x-event-checksum`)
-- Se actualiza la transacción y el stock
+- Se llama a `finalizeStatus`:
+  - Si `APPROVED`: se compromete la reserva (decrementa `stock_quantity` y `reserved_quantity` una sola vez)
+  - Si `DECLINED`/`ERROR`/`VOIDED`: solo se libera la reserva (`reserved_quantity`)
 - Se emite evento por Socket.IO
 
 ### 2. Bull (polling de respaldo)
 - **Primera consulta:** 10 segundos después de crear la transacción
 - **Siguientes:** 5 intentos cada 10 minutos
 - Si la transacción ya está en estado final, no hace nada (idempotente)
-- Si está `PENDING`, consulta a Wompi y actualiza
+- Si está `PENDING`, consulta a Wompi y vuelve a usar `finalizeStatus` igual que el webhook
 
 ## Socket.IO
 
