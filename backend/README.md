@@ -447,7 +447,25 @@ npm run format            # Formatear código con Prettier
 
 Los tests unitarios están implementados con **cobertura >80%** (Jest). Ejecutar `npm run test:cov` para el reporte actual. Ver sección "Cobertura de Código" más arriba.
 
-## Webhook Local (Opcional)
+## Configuración de Webhook
+
+El backend incluye un endpoint completamente funcional para recibir notificaciones de Wompi en tiempo real.
+
+### En Producción (AWS)
+
+El webhook está desplegado y listo para configurar:
+
+**URL pública:** `http://16.58.208.177:3000/api/v1/webhooks/wompi`
+
+**Para configurar en Wompi:**
+1. Acceder a [https://comercios.wompi.co/](https://comercios.wompi.co/)
+2. Ir a **Configuración → Webhooks**
+3. Agregar la URL del webhook
+4. Seleccionar evento: `transaction.updated`
+
+**Ver guía completa:** [../WEBHOOK_SETUP.md](../WEBHOOK_SETUP.md)
+
+### En Desarrollo Local (Opcional)
 
 Para probar webhooks en desarrollo local, exponer el endpoint usando **ngrok**:
 

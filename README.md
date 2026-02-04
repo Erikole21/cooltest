@@ -5,6 +5,7 @@ Aplicación fullstack de e-commerce con sistema de pagos con tarjeta de crédito
 ## 📋 Índice
 
 - [Descripción](#descripción)
+- [App desplegada (pruebas UAT) AWS](#app-desplegada-pruebas-uat)
 - [Stack Tecnológico](#stack-tecnológico)
 - [Estructura del Proyecto](#estructura-del-proyecto)
 - [Quick Start](#quick-start)
@@ -19,6 +20,26 @@ Cooltest es una aplicación de onboarding para comprar productos de tecnología 
 3. Ver resumen de pago con fees
 4. Ejecutar pago (integración Wompi)
 5. Ver resultado y volver al listado con stock actualizado
+
+## App desplegada (pruebas UAT)
+
+La aplicación está desplegada en AWS para pruebas del test. Para ejecutar el flujo de pago (UAT):
+
+| Dónde | URL |
+|-------|-----|
+| **App (frontend)** — ingresar aquí para probar el checkout | **http://16.58.208.177:5173/** |
+| **API (opcional)** — listar productos | http://16.58.208.177:3000/api/v1/products |
+
+**Flujo a probar (5 pasos):** Productos → Datos tarjeta/entrega → Resumen → Pago → Resultado → Volver a productos.
+
+**Tarjeta de prueba Wompi Sandbox:**
+
+- Número: `4242 4242 4242 4242`
+- Vencimiento: `12/30`
+- CVC: `123`
+- Nombre: `TEST USER`
+
+**Postman:** Colección disponible en `backend/postman_collection.json`. Base URL: `http://16.58.208.177:3000/api/v1`.
 
 ## Stack Tecnológico
 
@@ -184,12 +205,14 @@ Ver [frontend/README.md](frontend/README.md) para:
 - [x] Tests unitarios Backend con Jest (>80% cobertura)
 - [x] Tests unitarios Frontend con Vitest + React Testing Library (>80% cobertura en líneas)
 
-### 🔄 Fase 4: Deployment AWS (Pendiente)
-- [ ] Backend desplegado
-- [ ] Frontend desplegado
-- [ ] Base de datos RDS
-- [ ] Redis ElastiCache
-- [ ] Webhook configurado
+### ✅ Fase 4: Deployment AWS (Completada)
+- [x] Backend desplegado en EC2 (http://16.58.208.177:3000)
+- [x] Frontend desplegado en EC2 (http://16.58.208.177:5173)
+- [x] Base de datos PostgreSQL en Docker
+- [x] Redis en Docker
+- [x] Aplicación funcional y accesible públicamente
+- [x] Guía de deployment documentada en AWS_DEPLOYMENT_GUIDE.md
+- [x] Webhook endpoint listo para configurar (ver [WEBHOOK_SETUP.md](WEBHOOK_SETUP.md))
 
 ## Endpoints Disponibles
 
@@ -209,8 +232,24 @@ Todos con prefijo `/api/v1`:
 
 Las credenciales de pruebas están incluidas en `backend/.env.example`:
 
-
 **Modo Sandbox:** Sin transacciones reales, sin dinero real.
+
+## Configuración de Webhook Wompi
+
+El endpoint de webhook está **listo para configurar** en el panel de Wompi. La aplicación incluye:
+
+✅ **Endpoint público:** `http://16.58.208.177:3000/api/v1/webhooks/wompi`
+✅ **Validación de firma:** Implementada con `WOMPI_EVENTS_SECRET`
+✅ **Procesamiento robusto:** Manejo de eventos `transaction.updated`
+✅ **Sistema de respaldo:** Polling automático con Bull/Redis en caso de que el webhook falle
+
+**Para configurar en Wompi Developer:**
+1. Ingresar a [https://comercios.wompi.co/](https://comercios.wompi.co/)
+2. Ir a **Configuración → Webhooks**
+3. Agregar URL: `http://16.58.208.177:3000/api/v1/webhooks/wompi`
+4. Seleccionar evento: `transaction.updated`
+
+**Nota:** Se requiere acceso a la cuenta de Wompi Developer con las credenciales proporcionadas en la prueba. Ver guía completa en [WEBHOOK_SETUP.md](WEBHOOK_SETUP.md).
 
 ## Autor
 
