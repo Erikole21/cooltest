@@ -187,9 +187,9 @@ export function ResultView() {
             Detalle del Producto
           </h3>
           <div className="flex gap-4">
-            {product.image && (
+            {product.imageUrl && (
               <img
-                src={product.image}
+                src={product.imageUrl}
                 alt={product.name}
                 className="h-20 w-20 rounded-lg object-cover"
               />
