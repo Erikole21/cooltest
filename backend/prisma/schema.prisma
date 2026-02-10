@@ -59,6 +59,7 @@ model Transaction {
   unitPrice   Int                @map("unit_price") // Price in cents
   baseFee     Int                @map("base_fee") // Fee in cents
   deliveryFee Int                @map("delivery_fee") // Fee in cents
+  vatFee      Int                @default(0) @map("vat_fee") // VAT 19% in cents
   total       Int // Total amount in cents
   status      TransactionStatus  @default(PENDING)
   wompiTxnId  String?            @map("wompi_txn_id") @db.VarChar(255)

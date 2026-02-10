@@ -11,6 +11,7 @@ export interface CreateTransactionData {
   unitPrice: number;
   baseFee: number;
   deliveryFee: number;
+  vatFee: number;
   total: number;
   reference: string;
   reservedUntil?: Date;
@@ -18,6 +19,7 @@ export interface CreateTransactionData {
 
 export interface TransactionRepositoryPort {
   create(data: CreateTransactionData): Promise<TransactionEntity>;
+  findAll(): Promise<TransactionEntity[]>;
   findById(id: number): Promise<TransactionEntity | null>;
   findByReference(reference: string): Promise<TransactionEntity | null>;
   updateStatus(

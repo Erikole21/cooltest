@@ -27,7 +27,8 @@ describe('SummaryBackdrop', () => {
         delivery={mockDelivery}
         baseFeeCents={0}
         deliveryFeeCents={0}
-        totalCents={20000}
+        vatFeeCents={3800}
+        totalCents={23800}
         onPay={onPay}
       />
     );
@@ -44,7 +45,8 @@ describe('SummaryBackdrop', () => {
         quantity={1}
         baseFeeCents={0}
         deliveryFeeCents={0}
-        totalCents={10000}
+        vatFeeCents={1900}
+        totalCents={11900}
         onPay={onPay}
       />
     );
@@ -61,7 +63,8 @@ describe('SummaryBackdrop', () => {
         delivery={mockDelivery}
         baseFeeCents={0}
         deliveryFeeCents={0}
-        totalCents={10000}
+        vatFeeCents={1900}
+        totalCents={11900}
         onPay={() => {}}
       />
     );
@@ -79,7 +82,8 @@ describe('SummaryBackdrop', () => {
         delivery={mockDelivery}
         baseFeeCents={0}
         deliveryFeeCents={0}
-        totalCents={10000}
+        vatFeeCents={1900}
+        totalCents={11900}
         onPay={() => {}}
         onBack={onBack}
       />

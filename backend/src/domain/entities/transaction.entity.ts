@@ -15,6 +15,7 @@ export class TransactionEntity {
   unitPrice: number;
   baseFee: number;
   deliveryFee: number;
+  vatFee: number;
   total: number;
   status: TransactionStatus;
   wompiTxnId?: string;

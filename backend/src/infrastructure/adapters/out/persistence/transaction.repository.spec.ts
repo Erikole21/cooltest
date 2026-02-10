@@ -43,7 +43,8 @@ describe('TransactionRepository', () => {
         unitPrice: 100000,
         baseFee: 5000,
         deliveryFee: 10000,
-        total: 215000,
+        vatFee: 38000,
+        total: 253000,
         reference: 'TXN-1',
       };
 
@@ -583,7 +584,8 @@ describe('TransactionRepository', () => {
         unitPrice: 100000,
         baseFee: 5000,
         deliveryFee: 10000,
-        total: 215000,
+        vatFee: 38000,
+        total: 253000,
         reference: 'TXN-1',
         reservedUntil,
       };
@@ -611,6 +613,7 @@ describe('TransactionRepository', () => {
           unitPrice: createData.unitPrice,
           baseFee: createData.baseFee,
           deliveryFee: createData.deliveryFee,
+          vatFee: createData.vatFee,
           total: createData.total,
           reference: createData.reference,
           reservedUntil,

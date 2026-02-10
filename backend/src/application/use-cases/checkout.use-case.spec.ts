@@ -148,7 +148,8 @@ describe('CheckoutUseCase', () => {
         unitPrice: 100000,
         baseFee: 5000,
         deliveryFee: 10000,
-        total: 215000,
+        vatFee: 38000,
+        total: 253000,
         status: TransactionStatus.PENDING,
         reference: 'TXN-TEMP-123',
         createdAt: new Date(),
@@ -159,7 +160,7 @@ describe('CheckoutUseCase', () => {
         id: 'wompi-123',
         status: TransactionStatus.PENDING,
         reference: 'TXN-1',
-        amountInCents: 215000,
+        amountInCents: 253000,
       };
 
       productRepository.findById.mockResolvedValue(mockProduct);
@@ -173,7 +174,7 @@ describe('CheckoutUseCase', () => {
 
       expect(result.success).toBe(true);
       expect(result.transactionId).toBe(1);
-      expect(result.total).toBe(215000);
+      expect(result.total).toBe(253000);
       expect(productRepository.findById).toHaveBeenCalledWith(1);
       expect(customerRepository.create).toHaveBeenCalled();
       expect(deliveryRepository.create).toHaveBeenCalled();
@@ -248,7 +249,8 @@ describe('CheckoutUseCase', () => {
         unitPrice: 100000,
         baseFee: 5000,
         deliveryFee: 10000,
-        total: 215000,
+        vatFee: 38000,
+        total: 253000,
         status: TransactionStatus.PENDING,
         reference: 'TXN-TEMP-123',
         createdAt: new Date(),
@@ -288,19 +290,22 @@ describe('CheckoutUseCase', () => {
         id: 'wompi-123',
         status: TransactionStatus.PENDING,
         reference: 'TXN-1',
-        amountInCents: 215000,
+        amountInCents: 253000,
       });
 
       const result = await useCase.execute(mockInput);
 
-      expect(result.total).toBe(215000); // (100000 * 2) + 5000 + 10000
+      // (100000 * 2) + 5000 + 10000 + round(200000 * 0.19) = 200000 + 15000 + 38000 = 253000
+      expect(result.total).toBe(253000);
+      expect(result.vatFee).toBe(38000);
       expect(transactionRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({
           unitPrice: 100000,
           quantity: 2,
           baseFee: 5000,
           deliveryFee: 10000,
-          total: 215000,
+          vatFee: 38000,
+          total: 253000,
         }),
       );
     });

@@ -40,6 +40,7 @@ export class TransactionRepository implements TransactionRepositoryPort {
         unitPrice: data.unitPrice,
         baseFee: data.baseFee,
         deliveryFee: data.deliveryFee,
+        vatFee: data.vatFee,
         total: data.total,
         reference: data.reference,
         ...(data.reservedUntil && { reservedUntil: data.reservedUntil }),
@@ -47,6 +48,18 @@ export class TransactionRepository implements TransactionRepositoryPort {
       },
     });
     return this.toEntity(transaction);
+  }
+
+  async findAll(): Promise<TransactionEntity[]> {
+    const transactions = await this.prisma.transaction.findMany({
+      include: {
+        product: true,
+        customer: true,
+        delivery: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return transactions.map((t) => this.toEntity(t));
   }
 
   async findById(id: number): Promise<TransactionEntity | null> {

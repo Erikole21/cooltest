@@ -38,6 +38,7 @@ export interface CheckoutResult {
   success: boolean;
   transactionId?: number;
   status?: string;
+  vatFee?: number;
   total?: number;
   error?: string;
   code?: 'PRODUCT_NOT_FOUND' | 'INSUFFICIENT_STOCK' | 'CHECKOUT_FAILED';
@@ -93,7 +94,9 @@ export class CheckoutUseCase {
       const deliveryFee = parseInt(
         this.configService.get<string>('DELIVERY_FEE_CENTS', '0'),
       );
-      const total = unitPrice * input.quantity + baseFee + deliveryFee;
+      const productSubtotal = unitPrice * input.quantity;
+      const vatFee = Math.round(productSubtotal * 0.19); // IVA 19%
+      const total = productSubtotal + baseFee + deliveryFee + vatFee;
 
       const reservationTtlSeconds = parseInt(
         this.configService.get<string>('RESERVATION_TTL_SECONDS', '900'),
@@ -122,6 +125,7 @@ export class CheckoutUseCase {
         unitPrice,
         baseFee,
         deliveryFee,
+        vatFee,
         total,
         reference: tempReference,
         reservedUntil,
@@ -169,6 +173,7 @@ export class CheckoutUseCase {
         success: true,
         transactionId: transaction.id,
         status: wompiResponse.status,
+        vatFee,
         total,
       };
     } catch (error) {

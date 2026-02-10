@@ -30,6 +30,7 @@ const DELIVERY_FEE_CENTS = parseInt(
   import.meta.env.VITE_DELIVERY_FEE_CENTS ?? '0',
   10
 );
+const VAT_RATE = 0.19;
 
 function normalizeCheckoutError(err: unknown): string {
   const raw = err instanceof Error ? err.message : 'Error al procesar el pago';
@@ -133,6 +134,8 @@ export function CheckoutFlow({ presentation }: { presentation: Presentation }) {
   if (step === 1 || !product) return null;
 
   if (step === 3) {
+    const productSubtotal = product.price * quantity;
+    const vatFeeCents = Math.round(productSubtotal * VAT_RATE);
     return (
       <SummaryBackdrop
         product={product}
@@ -141,7 +144,8 @@ export function CheckoutFlow({ presentation }: { presentation: Presentation }) {
         delivery={delivery}
         baseFeeCents={BASE_FEE_CENTS}
         deliveryFeeCents={DELIVERY_FEE_CENTS}
-        totalCents={product.price * quantity + BASE_FEE_CENTS + DELIVERY_FEE_CENTS}
+        vatFeeCents={vatFeeCents}
+        totalCents={productSubtotal + BASE_FEE_CENTS + DELIVERY_FEE_CENTS + vatFeeCents}
         onPay={handlePay}
         onBack={() => dispatch(setStep(2))}
         loading={paying}

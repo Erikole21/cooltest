@@ -61,7 +61,8 @@ describe('CheckoutController', () => {
         success: true,
         transactionId: 1,
         status: 'PENDING',
-        total: 215000,
+        vatFee: 38000,
+        total: 253000,
       };
 
       checkoutUseCase.execute.mockResolvedValue(mockResult);
@@ -72,7 +73,8 @@ describe('CheckoutController', () => {
       expect(result).toEqual({
         transactionId: 1,
         status: 'PENDING',
-        total: 215000,
+        vatFee: 38000,
+        total: 253000,
       });
       expect(checkoutUseCase.execute).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -116,7 +118,8 @@ describe('CheckoutController', () => {
         success: true,
         transactionId: 1,
         status: 'PENDING',
-        total: 215000,
+        vatFee: 38000,
+        total: 253000,
       };
 
       checkoutUseCase.execute.mockResolvedValue(mockResult);

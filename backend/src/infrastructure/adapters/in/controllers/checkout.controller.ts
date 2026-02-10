@@ -56,6 +56,7 @@ export class CheckoutController {
     return {
       transactionId: result.transactionId,
       status: result.status,
+      vatFee: result.vatFee,
       total: result.total,
     };
   }

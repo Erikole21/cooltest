@@ -8,6 +8,7 @@ interface SummaryBackdropProps {
   delivery: DeliveryForm | null;
   baseFeeCents: number;
   deliveryFeeCents: number;
+  vatFeeCents: number;
   totalCents: number;
   onPay: () => void;
   onBack?: () => void;
@@ -30,6 +31,7 @@ export function SummaryBackdrop({
   delivery,
   baseFeeCents,
   deliveryFeeCents,
+  vatFeeCents,
   totalCents,
   onPay,
   onBack,
@@ -93,6 +95,12 @@ export function SummaryBackdrop({
           <span className="text-slate-600">Envío</span>
           <span className="font-medium text-slate-800">
             {formatPrice(deliveryFeeCents)}
+          </span>
+        </li>
+        <li className="flex justify-between">
+          <span className="text-slate-600">IVA (19%)</span>
+          <span className="font-medium text-slate-800">
+            {formatPrice(vatFeeCents)}
           </span>
         </li>
       </ul>

@@ -48,6 +48,7 @@ export interface CheckoutPayload {
 export interface CheckoutResponse {
   transactionId: number;
   status: string;
+  vatFee: number;
   total: number;
 }
 
